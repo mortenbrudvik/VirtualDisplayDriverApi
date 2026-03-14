@@ -88,7 +88,8 @@
                 </Border>
 
                 <!-- Navigation -->
-                <ListBox ItemsSource="{Binding NavigationItems}"
+                <ListBox AutomationProperties.AutomationId="NavListBox"
+                         ItemsSource="{Binding NavigationItems}"
                          SelectedItem="{Binding SelectedNavigationItem}"
                          Style="{StaticResource NavListBox}"
                          Margin="0,4,0,0">
@@ -113,7 +114,8 @@
         </Border>
 
         <!-- Main Content Area -->
-        <ContentControl Grid.Column="1" Grid.Row="0"
+        <ContentControl AutomationProperties.AutomationId="ContentArea"
+                        Grid.Column="1" Grid.Row="0"
                         Content="{Binding Navigation.CurrentViewModel}"
                         Margin="24,20,24,20" />
 

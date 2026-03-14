@@ -11,7 +11,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <!-- Header -->
-            <TextBlock Text="GPU Management" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBlock AutomationProperties.AutomationId="GpuHeader" Text="GPU Management" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
             <TextBlock Text="View GPU information and select which GPU hosts virtual displays"
                        Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,20" />
 
@@ -71,12 +71,12 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <ComboBox Grid.Column="0"
+                        <ComboBox AutomationProperties.AutomationId="GpuComboBox" Grid.Column="0"
                                   ItemsSource="{Binding AllGpus}"
                                   SelectedItem="{Binding SelectedGpu}"
                                   IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
                                   Margin="0,0,12,0" />
-                        <Button Grid.Column="1"
+                        <Button AutomationProperties.AutomationId="SetGpuButton" Grid.Column="1"
                                 Content="Set GPU"
                                 Command="{Binding SetGpuCommand}"
                                 IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}" />
@@ -85,7 +85,7 @@
             </Border>
 
             <!-- Refresh -->
-            <Button Content="Refresh GPU Info" Command="{Binding RefreshGpuInfoCommand}"
+            <Button AutomationProperties.AutomationId="RefreshGpuButton" Content="Refresh GPU Info" Command="{Binding RefreshGpuInfoCommand}"
                     Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" />
         </StackPanel>
     </ScrollViewer>

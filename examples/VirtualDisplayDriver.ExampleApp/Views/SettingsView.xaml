@@ -9,7 +9,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <!-- Header -->
-            <TextBlock Text="Driver Settings" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBlock AutomationProperties.AutomationId="SettingsHeader" Text="Driver Settings" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
             <TextBlock Text="Configure Virtual Display Driver features and logging"
                        Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,20" />
 
@@ -38,7 +38,7 @@
                     <!-- HDR+ -->
                     <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">
                         <DockPanel>
-                            <ToggleButton DockPanel.Dock="Right"
+                            <ToggleButton AutomationProperties.AutomationId="ToggleHdrPlus" DockPanel.Dock="Right"
                                           Style="{StaticResource ToggleSwitch}"
                                           IsChecked="{Binding HdrPlusEnabled}"
                                           Command="{Binding ToggleHdrPlusCommand}" />
@@ -53,7 +53,7 @@
                     <!-- SDR 10-bit -->
                     <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">
                         <DockPanel>
-                            <ToggleButton DockPanel.Dock="Right"
+                            <ToggleButton AutomationProperties.AutomationId="ToggleSdr10Bit" DockPanel.Dock="Right"
                                           Style="{StaticResource ToggleSwitch}"
                                           IsChecked="{Binding Sdr10BitEnabled}"
                                           Command="{Binding ToggleSdr10BitCommand}" />
@@ -136,7 +136,7 @@
                     <!-- Debug Logging -->
                     <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">
                         <DockPanel>
-                            <ToggleButton DockPanel.Dock="Right"
+                            <ToggleButton AutomationProperties.AutomationId="ToggleDebugLogging" DockPanel.Dock="Right"
                                           Style="{StaticResource ToggleSwitch}"
                                           IsChecked="{Binding DebugLoggingEnabled}"
                                           Command="{Binding ToggleDebugLoggingCommand}" />
@@ -151,7 +151,7 @@
                     <!-- General Logging -->
                     <Border Padding="0,12">
                         <DockPanel>
-                            <ToggleButton DockPanel.Dock="Right"
+                            <ToggleButton AutomationProperties.AutomationId="ToggleLogging" DockPanel.Dock="Right"
                                           Style="{StaticResource ToggleSwitch}"
                                           IsChecked="{Binding LoggingEnabled}"
                                           Command="{Binding ToggleLoggingCommand}" />
@@ -166,7 +166,7 @@
             </Border>
 
             <!-- Refresh Button -->
-            <Button Content="Refresh Settings" Command="{Binding RefreshSettingsCommand}"
+            <Button AutomationProperties.AutomationId="RefreshSettingsButton" Content="Refresh Settings" Command="{Binding RefreshSettingsCommand}"
                     HorizontalAlignment="Left" />
         </StackPanel>
     </ScrollViewer>

@@ -53,10 +53,9 @@ public partial class App : Application
     {
         if (_serviceProvider is not null)
         {
-            var manager = _serviceProvider.GetService<IVirtualDisplayManager>();
-            manager?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-
-            _serviceProvider.Dispose();
+            // ServiceProvider contains IAsyncDisposable singletons (VirtualDisplayManager),
+            // so we must use async disposal to avoid InvalidOperationException.
+            _serviceProvider.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
 
         base.OnExit(e);

@@ -10,17 +10,17 @@
     <DockPanel>
         <!-- Header -->
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Activity Log" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBlock AutomationProperties.AutomationId="ActivityLogHeader" Text="Activity Log" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
             <TextBlock Text="Real-time log of API calls, responses, and errors"
                        Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,12" />
 
             <!-- Toolbar -->
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                <Button Content="Clear" Command="{Binding ClearLogCommand}"
+                <Button AutomationProperties.AutomationId="ClearLogButton" Content="Clear" Command="{Binding ClearLogCommand}"
                         Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" />
-                <Button Content="Copy All" Command="{Binding CopyLogCommand}"
+                <Button AutomationProperties.AutomationId="CopyLogButton" Content="Copy All" Command="{Binding CopyLogCommand}"
                         Style="{StaticResource SecondaryButton}" Margin="0,0,16,0" />
-                <CheckBox IsChecked="{Binding AutoScroll}" VerticalAlignment="Center">
+                <CheckBox AutomationProperties.AutomationId="AutoScrollCheckBox" IsChecked="{Binding AutoScroll}" VerticalAlignment="Center">
                     <TextBlock Text="Auto-scroll" Foreground="{StaticResource TextSecondary}" FontSize="12" />
                 </CheckBox>
             </StackPanel>
@@ -34,6 +34,7 @@
                      VirtualizingPanel.IsVirtualizing="True"
                      VirtualizingPanel.VirtualizationMode="Recycling"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     AutomationProperties.AutomationId="LogListBox"
                      x:Name="LogListBox">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">

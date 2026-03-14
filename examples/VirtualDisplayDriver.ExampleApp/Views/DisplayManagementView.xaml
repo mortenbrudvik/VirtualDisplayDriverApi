@@ -11,7 +11,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <!-- Header -->
-            <TextBlock Text="Display Management" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBlock AutomationProperties.AutomationId="DisplayHeader" Text="Display Management" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
             <TextBlock Text="Add, remove, or set the number of virtual displays"
                        Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,20" />
 
@@ -31,16 +31,16 @@
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="CURRENT DISPLAYS" FontSize="10" Foreground="{StaticResource TextDim}"
                                FontWeight="SemiBold" HorizontalAlignment="Center" />
-                    <TextBlock Text="{Binding CurrentDisplayCount}" FontSize="56" FontWeight="Bold"
+                    <TextBlock AutomationProperties.AutomationId="CurrentDisplayCount" Text="{Binding CurrentDisplayCount}" FontSize="56" FontWeight="Bold"
                                Foreground="{StaticResource AccentPrimary}" HorizontalAlignment="Center"
                                Margin="0,4,0,4" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Content=" − " FontSize="18" FontWeight="Bold"
+                        <Button AutomationProperties.AutomationId="RemoveDisplayButton" Content=" − " FontSize="18" FontWeight="Bold"
                                 Command="{Binding RemoveDisplayCommand}"
                                 IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
                                 Style="{StaticResource SecondaryButton}"
                                 Width="48" Padding="0,4" Margin="0,0,8,0" />
-                        <Button Content=" + " FontSize="18" FontWeight="Bold"
+                        <Button AutomationProperties.AutomationId="AddDisplayButton" Content=" + " FontSize="18" FontWeight="Bold"
                                 Command="{Binding AddDisplayCommand}"
                                 IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
                                 Style="{StaticResource SecondaryButton}"
@@ -73,7 +73,7 @@
                                    VerticalAlignment="Center"
                                    Margin="0,0,16,0"
                                    MinWidth="24" TextAlignment="Center" />
-                        <Button Grid.Column="2"
+                        <Button AutomationProperties.AutomationId="SetCountButton" Grid.Column="2"
                                 Content="Set Count"
                                 Command="{Binding SetDisplayCountCommand}"
                                 IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}" />
@@ -82,7 +82,7 @@
             </Border>
 
             <!-- Remove All -->
-            <Button Content="Remove All Displays"
+            <Button AutomationProperties.AutomationId="RemoveAllButton" Content="Remove All Displays"
                     Command="{Binding RemoveAllCommand}"
                     IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
                     Style="{StaticResource DangerButton}"
