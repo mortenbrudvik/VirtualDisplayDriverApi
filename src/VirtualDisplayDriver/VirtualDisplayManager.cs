@@ -20,6 +20,12 @@ public partial class VirtualDisplayManager : IVirtualDisplayManager
     public bool IsConnected { get; private set; }
     public IVddPipeClient PipeClient => _client;
 
+    public void SyncDisplayCount(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        DisplayCount = count;
+    }
+
     public VirtualDisplayManager(
         IVddPipeClient client,
         VirtualDisplayOptions options,

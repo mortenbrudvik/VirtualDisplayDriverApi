@@ -35,6 +35,25 @@
                 </DockPanel>
             </Border>
 
+            <!-- Reinstall Banner (device has error) -->
+            <Border AutomationProperties.AutomationId="ReinstallBanner"
+                    Background="#33F38BA8" CornerRadius="6" Padding="16,12" Margin="0,0,0,12"
+                    Visibility="{Binding ShowReinstallBanner, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <Button AutomationProperties.AutomationId="ReinstallDriverButton"
+                            DockPanel.Dock="Right" Content="Reinstall Driver"
+                            Command="{Binding ReinstallDriverCommand}"
+                            IsEnabled="{Binding IsSetupInProgress, Converter={StaticResource InverseBool}}"
+                            Margin="12,0,0,0" VerticalAlignment="Center" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Driver Error" FontWeight="SemiBold" FontSize="14"
+                                   Foreground="{StaticResource AccentError}" />
+                        <TextBlock Text="The driver has a problem (Code 43). Reinstalling may fix this."
+                                   Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
             <!-- Enable/Restart Banner -->
             <Border AutomationProperties.AutomationId="EnableBanner"
                     Background="#33F9E2AF" CornerRadius="6" Padding="16,12" Margin="0,0,0,12"

@@ -117,4 +117,25 @@ public class VirtualDisplayManagerTests
         await act.Should().ThrowAsync<PipeConnectionException>();
         manager.IsConnected.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task SyncDisplayCount_SetsCountWithoutPipeCommand()
+    {
+        await using var manager = CreateManager();
+        manager.DisplayCount.Should().Be(0);
+
+        manager.SyncDisplayCount(3);
+
+        manager.DisplayCount.Should().Be(3);
+        await _mockClient.DidNotReceive().SetDisplayCountAsync(Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SyncDisplayCount_ThrowsOnNegative()
+    {
+        await using var manager = CreateManager();
+
+        var act = () => manager.SyncDisplayCount(-1);
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
 }

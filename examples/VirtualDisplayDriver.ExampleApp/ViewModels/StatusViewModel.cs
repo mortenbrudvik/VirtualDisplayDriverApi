@@ -21,6 +21,7 @@ public partial class StatusViewModel : ObservableObject
     [ObservableProperty] private string? _errorMessage;
     [ObservableProperty] private bool _showInstallBanner;
     [ObservableProperty] private bool _showEnableBanner;
+    [ObservableProperty] private bool _showReinstallBanner;
     [ObservableProperty] private bool _isSetupInProgress;
     [ObservableProperty] private double _setupProgressPercent;
     [ObservableProperty] private string? _setupProgressMessage;
@@ -48,6 +49,13 @@ public partial class StatusViewModel : ObservableObject
 
             PingResult = await _manager.PingAsync();
             IsConnected = _manager.IsConnected;
+
+            // Sync display count from driver's persisted XML config (source of truth).
+            // Unlike EnumDisplayDevices, the XML is written synchronously before reload — no timing issues.
+            var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
+            if (configuredCount != _manager.DisplayCount)
+                _manager.SyncDisplayCount(configuredCount);
+
             DisplayCount = _manager.DisplayCount;
 
             if (IsConnected)
@@ -65,8 +73,21 @@ public partial class StatusViewModel : ObservableObject
         }
         finally
         {
+            // Check device state to determine which banner to show
+            var deviceHasError = false;
+            if (IsDriverInstalled && !IsPipeRunning)
+            {
+                try
+                {
+                    var state = await _setup.GetDeviceStateAsync();
+                    deviceHasError = state == DeviceState.Error;
+                }
+                catch { /* ignore — will show enable banner as fallback */ }
+            }
+
             ShowInstallBanner = !IsDriverInstalled;
-            ShowEnableBanner = IsDriverInstalled && !IsPipeRunning;
+            ShowReinstallBanner = IsDriverInstalled && deviceHasError;
+            ShowEnableBanner = IsDriverInstalled && !IsPipeRunning && !deviceHasError;
             IsLoading = false;
         }
     }
@@ -126,6 +147,76 @@ public partial class StatusViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ReinstallDriverAsync()
+    {
+        IsSetupInProgress = true;
+        ErrorMessage = null;
+        _logger.LogInfo("Setup", "Reinstalling driver (uninstall → install)...");
+
+        try
+        {
+            // Uninstall
+            SetupProgressMessage = "Uninstalling driver...";
+            SetupProgressPercent = 0.1;
+            await _setup.UninstallDriverAsync();
+            _logger.LogSuccess("Setup", "Driver uninstalled.");
+
+            // Wait for device to fully remove
+            await Task.Delay(2000);
+
+            // Install
+            var progress = new Progress<SetupProgress>(p =>
+            {
+                SetupProgressPercent = 0.2 + p.PercentComplete * 0.8;
+                SetupProgressMessage = p.Message;
+            });
+
+            await _setup.InstallDriverAsync(progress: progress);
+            _logger.LogSuccess("Setup", "Driver reinstalled successfully.");
+
+            // Wait for pipe to start
+            SetupProgressMessage = "Waiting for driver to initialize...";
+            var pipeReady = false;
+            for (var i = 0; i < 20; i++)
+            {
+                await Task.Delay(500);
+                if (VirtualDisplayDetection.IsPipeRunning())
+                {
+                    pipeReady = true;
+                    break;
+                }
+            }
+
+            if (pipeReady)
+            {
+                // Force the driver to create displays matching the XML config
+                var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
+                if (configuredCount > 0)
+                {
+                    await _manager.SetDisplayCountAsync(configuredCount);
+                    _logger.LogSuccess("Setup", $"Driver pipe is running. Set display count to {configuredCount}.");
+                }
+                else
+                {
+                    _manager.SyncDisplayCount(0);
+                    _logger.LogSuccess("Setup", "Driver pipe is running. No displays configured.");
+                }
+            }
+        }
+        catch (SetupException ex)
+        {
+            ErrorMessage = ex.Message;
+            _logger.LogError("Setup", $"Reinstall failed: {ex.Message}");
+        }
+        finally
+        {
+            IsSetupInProgress = false;
+            SetupProgressMessage = null;
+            await RefreshStatusAsync();
+        }
+    }
+
+    [RelayCommand]
     private async Task EnableDriverAsync()
     {
         IsSetupInProgress = true;
@@ -166,9 +257,24 @@ public partial class StatusViewModel : ObservableObject
             }
 
             if (pipeReady)
-                _logger.LogSuccess("Setup", "Driver pipe is running.");
+            {
+                // Force the driver to create displays matching the XML config
+                var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
+                if (configuredCount > 0)
+                {
+                    await _manager.SetDisplayCountAsync(configuredCount);
+                    _logger.LogSuccess("Setup", $"Driver pipe is running. Set display count to {configuredCount}.");
+                }
+                else
+                {
+                    _manager.SyncDisplayCount(0);
+                    _logger.LogSuccess("Setup", "Driver pipe is running. No displays configured.");
+                }
+            }
             else
+            {
                 _logger.LogWarning("Setup", "Driver pipe did not start within 10 seconds. The driver may need more time or a system restart.");
+            }
         }
         catch (SetupException ex)
         {
