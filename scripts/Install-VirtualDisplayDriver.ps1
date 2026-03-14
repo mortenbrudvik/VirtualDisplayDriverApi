@@ -32,9 +32,14 @@ if (-not $SkipInstall) {
         [Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $isAdmin) {
         Write-Host "Restarting as Administrator..." -ForegroundColor Yellow
-        $args = @("-ExecutionPolicy", "Bypass", "-File", $PSCommandPath, "-InstallPath", $InstallPath)
-        Start-Process powershell -Verb RunAs -ArgumentList $args -Wait
-        exit $LASTEXITCODE
+        try {
+            $elevatedArgs = @("-ExecutionPolicy", "Bypass", "-File", $PSCommandPath, "-InstallPath", $InstallPath)
+            $proc = Start-Process powershell -Verb RunAs -ArgumentList $elevatedArgs -Wait -PassThru
+            exit $proc.ExitCode
+        } catch {
+            Write-Error "Administrator elevation was declined or failed: $_"
+            exit 1
+        }
     }
 }
 
@@ -42,9 +47,15 @@ $repo = "VirtualDrivers/Virtual-Display-Driver"
 $apiUrl = "https://api.github.com/repos/$repo/releases/latest"
 
 # Determine architecture-specific asset name pattern
+# GitHub releases only provide x86 (covers x86 and x64) and ARM64 packages
 $arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
-    "Arm64" { "ARM64" }
-    default { "x86" }
+    ([System.Runtime.InteropServices.Architecture]::Arm64) { "ARM64" }
+    ([System.Runtime.InteropServices.Architecture]::X64)   { "x86" }
+    ([System.Runtime.InteropServices.Architecture]::X86)   { "x86" }
+    default {
+        Write-Error "Unsupported architecture: $([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)"
+        exit 1
+    }
 }
 $assetPattern = "VirtualDisplayDriver-$arch.Driver.Only.zip"
 

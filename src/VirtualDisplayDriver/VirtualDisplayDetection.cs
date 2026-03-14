@@ -1,3 +1,4 @@
+using System.Security;
 using Microsoft.Win32;
 using VirtualDisplayDriver.Pipe;
 
@@ -29,7 +30,14 @@ public static class VirtualDisplayDetection
 
     private static string? GetRegistryInstallPath()
     {
-        using var key = Registry.LocalMachine.OpenSubKey(RegistryKey);
-        return key?.GetValue(RegistryValueName) as string;
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(RegistryKey);
+            return key?.GetValue(RegistryValueName) as string;
+        }
+        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException)
+        {
+            return null;
+        }
     }
 }
