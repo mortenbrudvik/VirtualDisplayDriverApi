@@ -68,8 +68,10 @@ public class VddPipeClient : IVddPipeClient
                     nameof(command));
 
             var payload = Encoding.Unicode.GetBytes(command);
-            await pipe.WriteAsync(payload, ct);
-            await pipe.FlushAsync(ct);
+            using var writeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            writeCts.CancelAfter(_options.WriteTimeout);
+            await pipe.WriteAsync(payload, writeCts.Token);
+            await pipe.FlushAsync(writeCts.Token);
 
             using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             readCts.CancelAfter(_options.ReadTimeout);
