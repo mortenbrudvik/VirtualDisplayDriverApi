@@ -61,4 +61,26 @@ public class ServiceCollectionExtensionsTests
         var client = provider.GetRequiredService<IVddPipeClient>();
         manager.PipeClient.Should().BeSameAs(client);
     }
+
+    [Fact]
+    public void AddVirtualDisplayDriver_RegistersSetup()
+    {
+        var services = new ServiceCollection();
+        services.AddVirtualDisplayDriver();
+        var provider = services.BuildServiceProvider();
+
+        provider.GetService<IVirtualDisplaySetup>().Should().NotBeNull();
+    }
+
+    [Fact]
+    public void AddVirtualDisplayDriver_SetupIsSingleton()
+    {
+        var services = new ServiceCollection();
+        services.AddVirtualDisplayDriver();
+        var provider = services.BuildServiceProvider();
+
+        var setup1 = provider.GetService<IVirtualDisplaySetup>();
+        var setup2 = provider.GetService<IVirtualDisplaySetup>();
+        setup1.Should().BeSameAs(setup2);
+    }
 }

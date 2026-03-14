@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using VirtualDisplayDriver.Pipe;
+using VirtualDisplayDriver.Setup;
 
 namespace VirtualDisplayDriver.DependencyInjection;
 
@@ -30,6 +31,14 @@ public static class ServiceCollectionExtensions
             var options = sp.GetRequiredService<IOptions<VirtualDisplayOptions>>().Value;
             var logger = sp.GetService<ILogger<VirtualDisplayManager>>();
             return new VirtualDisplayManager(client, options, logger);
+        });
+
+        services.TryAddSingleton<IVirtualDisplaySetup>(sp =>
+        {
+            var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("VirtualDisplayDriverApi/1.0");
+            var logger = sp.GetService<ILogger<VirtualDisplaySetup>>();
+            return new VirtualDisplaySetup(httpClient, new ProcessRunner(), logger);
         });
 
         return services;

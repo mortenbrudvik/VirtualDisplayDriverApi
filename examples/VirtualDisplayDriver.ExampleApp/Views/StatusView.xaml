@@ -6,6 +6,7 @@
     <UserControl.Resources>
         <converters:BoolToBrushConverter x:Key="BoolToBrush" />
         <converters:BoolToStatusConverter x:Key="BoolYesNo" TrueText="Yes" FalseText="No" />
+        <converters:InverseBoolConverter x:Key="InverseBool" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
 
@@ -15,6 +16,52 @@
             <TextBlock AutomationProperties.AutomationId="StatusHeader" Text="Status Overview" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
             <TextBlock Text="Driver health and connection information"
                        Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,20" />
+
+            <!-- Install Banner -->
+            <Border AutomationProperties.AutomationId="InstallBanner"
+                    Background="#3389B4FA" CornerRadius="6" Padding="16,12" Margin="0,0,0,12"
+                    Visibility="{Binding ShowInstallBanner, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <Button AutomationProperties.AutomationId="InstallDriverButton"
+                            DockPanel.Dock="Right" Content="Install Driver"
+                            Command="{Binding InstallDriverCommand}"
+                            IsEnabled="{Binding IsSetupInProgress, Converter={StaticResource InverseBool}}"
+                            Margin="12,0,0,0" VerticalAlignment="Center" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Driver Not Installed" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="The Virtual Display Driver is not detected on this system."
+                                   Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Enable Banner -->
+            <Border AutomationProperties.AutomationId="EnableBanner"
+                    Background="#33F9E2AF" CornerRadius="6" Padding="16,12" Margin="0,0,0,12"
+                    Visibility="{Binding ShowEnableBanner, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <Button AutomationProperties.AutomationId="EnableDriverButton"
+                            DockPanel.Dock="Right" Content="Enable Driver"
+                            Command="{Binding EnableDriverCommand}"
+                            IsEnabled="{Binding IsSetupInProgress, Converter={StaticResource InverseBool}}"
+                            Margin="12,0,0,0" VerticalAlignment="Center" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Driver Not Running" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="The driver is installed but the device appears to be disabled."
+                                   Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Setup Progress -->
+            <Border AutomationProperties.AutomationId="SetupProgress"
+                    Background="#3389B4FA" CornerRadius="6" Padding="16,12" Margin="0,0,0,12"
+                    Visibility="{Binding IsSetupInProgress, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <TextBlock Text="{Binding SetupProgressMessage}" FontSize="12" Margin="0,0,0,8" />
+                    <ProgressBar Value="{Binding SetupProgressPercent}" Maximum="1.0" Height="4" />
+                </StackPanel>
+            </Border>
 
             <!-- Loading -->
             <ProgressBar IsIndeterminate="True"

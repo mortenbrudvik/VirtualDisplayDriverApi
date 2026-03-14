@@ -7,6 +7,7 @@ namespace VirtualDisplayDriver.ExampleApp.ViewModels;
 public partial class StatusViewModel : ObservableObject
 {
     private readonly IVirtualDisplayManager _manager;
+    private readonly IVirtualDisplaySetup _setup;
     private readonly IActivityLogger _logger;
 
     [ObservableProperty] private bool _isLoading;
@@ -18,10 +19,16 @@ public partial class StatusViewModel : ObservableObject
     [ObservableProperty] private int _displayCount;
     [ObservableProperty] private string? _iddCxVersion;
     [ObservableProperty] private string? _errorMessage;
+    [ObservableProperty] private bool _showInstallBanner;
+    [ObservableProperty] private bool _showEnableBanner;
+    [ObservableProperty] private bool _isSetupInProgress;
+    [ObservableProperty] private double _setupProgressPercent;
+    [ObservableProperty] private string? _setupProgressMessage;
 
-    public StatusViewModel(IVirtualDisplayManager manager, IActivityLogger logger)
+    public StatusViewModel(IVirtualDisplayManager manager, IVirtualDisplaySetup setup, IActivityLogger logger)
     {
         _manager = manager;
+        _setup = setup;
         _logger = logger;
         _ = RefreshStatusAsync();
     }
@@ -58,6 +65,8 @@ public partial class StatusViewModel : ObservableObject
         }
         finally
         {
+            ShowInstallBanner = !IsDriverInstalled;
+            ShowEnableBanner = IsDriverInstalled && !IsPipeRunning;
             IsLoading = false;
         }
     }
@@ -82,6 +91,61 @@ public partial class StatusViewModel : ObservableObject
             PingResult = false;
             IsConnected = false;
             _logger.LogError("Status", $"Ping error: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallDriverAsync()
+    {
+        IsSetupInProgress = true;
+        ErrorMessage = null;
+        _logger.LogInfo("Setup", "Starting driver installation...");
+
+        try
+        {
+            var progress = new Progress<SetupProgress>(p =>
+            {
+                SetupProgressPercent = p.PercentComplete;
+                SetupProgressMessage = p.Message;
+            });
+
+            await _setup.InstallDriverAsync(progress: progress);
+            _logger.LogSuccess("Setup", "Driver installed successfully.");
+        }
+        catch (SetupException ex)
+        {
+            ErrorMessage = ex.Message;
+            _logger.LogError("Setup", $"Installation failed: {ex.Message}");
+        }
+        finally
+        {
+            IsSetupInProgress = false;
+            SetupProgressMessage = null;
+            await RefreshStatusAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task EnableDriverAsync()
+    {
+        IsSetupInProgress = true;
+        ErrorMessage = null;
+        _logger.LogInfo("Setup", "Enabling virtual display device...");
+
+        try
+        {
+            await _setup.EnableDeviceAsync();
+            _logger.LogSuccess("Setup", "Device enabled successfully.");
+        }
+        catch (SetupException ex)
+        {
+            ErrorMessage = ex.Message;
+            _logger.LogError("Setup", $"Enable failed: {ex.Message}");
+        }
+        finally
+        {
+            IsSetupInProgress = false;
+            await RefreshStatusAsync();
         }
     }
 }
