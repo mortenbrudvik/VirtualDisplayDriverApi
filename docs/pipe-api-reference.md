@@ -2,6 +2,8 @@
 
 API reference for the named-pipe control protocol exposed by the upstream [Virtual-Display-Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver) (MttVDD). This protocol lets client applications manage virtual monitors at runtime by sending plain-text commands over a Windows named pipe.
 
+> **Version target:** MttVDD driver releases 24.12+ (protocol stable since late 2024).
+
 ---
 
 ## 1. Quick Start
@@ -47,6 +49,8 @@ while ((bytesRead = await pipe.ReadAsync(buffer)) > 0)
 | **Max instances** | `PIPE_UNLIMITED_INSTANCES` — the server can create multiple pipe instances simultaneously |
 | **Security** | Explicit `SECURITY_ATTRIBUTES` with SDDL string `D:(A;;GA;;;WD)` — grants full control (`GA` = Generic All) to all local users and processes (`WD` = World/Everyone). |
 
+> **Security note:** The SDDL string grants **Generic All** access to the **World (Everyone)** SID, meaning any local user or process on the machine can connect and issue commands -- including `SETDISPLAYCOUNT` and toggle commands that modify driver state. This is by design for local desktop use. In multi-user or shared-machine scenarios, review whether unrestricted pipe access is appropriate.
+
 Each command requires its own pipe connection. After the driver processes the command and sends any response data, it calls `DisconnectNamedPipe` and closes the handle. The client detects this when `ReadAsync` returns 0 bytes.
 
 > **Note on pipe mode:** The server-side pipe uses synchronous blocking mode (`PIPE_WAIT`). The `PipeOptions.Asynchronous` flag in the Quick Start and client examples is a client-side option for non-blocking I/O -- it does not affect the server's behavior.
@@ -60,6 +64,8 @@ There is no framing layer. Raw bytes are written directly to the pipe.
 ### Sending commands
 
 Encode the command string as **UTF-16LE** (`Encoding.Unicode` in .NET), then write the raw bytes. This matches the driver's internal `wchar_t` read buffer.
+
+> **WARNING: Prefix matching.** The driver matches commands using `wcsncmp` (prefix comparison), not exact string equality. For example, sending `PING_EXTRA` would match the `PING` handler. Always send exactly the documented command strings and avoid appending unexpected trailing text. See also Section 10 (Limits and Caveats).
 
 ```csharp
 var payload = Encoding.Unicode.GetBytes("PING");  // 8 bytes: P-00 I-00 N-00 G-00
@@ -184,6 +190,8 @@ Query the current driver configuration.
 | **Response format** | `SETTINGS DEBUG=true\|false LOG=true\|false` |
 
 The response is a single-line wstring with the prefix `SETTINGS ` followed by two key=value pairs indicating the current debug logging and logging status. This is **not** the full driver configuration -- only the two logging flags are returned.
+
+> **Note on response keys:** The response uses the short key `LOG` (not `LOGGING`) and `DEBUG` (not `LOG_DEBUG`). These are internal abbreviated names and do not correspond one-to-one with the pipe command names. `LOG=true|false` reflects the state controlled by the `LOGGING` command, and `DEBUG=true|false` reflects the state controlled by the `LOG_DEBUG` command.
 
 > **Note:** The response encoding for `GETSETTINGS` differs from all other commands. Use `Encoding.Unicode` (UTF-16LE) to decode the response, not `Encoding.UTF8`. This is because `GETSETTINGS` writes a `wstring` directly to the pipe, while other commands respond through the UTF-8 log-through-pipe mechanism.
 
@@ -384,6 +392,8 @@ await SendDriverCommandAsync("SETGPU \"NVIDIA GeForce RTX 4090\"");
 
 When the `SendLogsThroughPipe` setting is enabled in `vdd_settings.xml` (default: `true`), all driver log output from `vddlog()` is written to the connected pipe via `SendToPipe()` as **UTF-8** text.
 
+> **Note:** `SendLogsThroughPipe` cannot be toggled through the pipe protocol. It can only be changed by editing `vdd_settings.xml` directly and reloading the driver (e.g., via `SETDISPLAYCOUNT`). There is no pipe command to enable or disable this setting at runtime.
+
 This has several implications for client code:
 
 - **Responses are log messages, not structured data.** Commands like `SETDISPLAYCOUNT` do not send a dedicated response -- instead, the log messages generated during the reload operation are forwarded through the pipe.
@@ -576,6 +586,8 @@ std::string SendDriverCommand(const std::wstring& command)
 
 ### Python
 
+> **Dependency:** Requires `pywin32` (`pip install pywin32`).
+
 ```python
 import win32file
 import win32pipe
@@ -634,6 +646,58 @@ if __name__ == "__main__":
     send_driver_command("SETDISPLAYCOUNT 0")
     print("Removed all virtual monitors")
 ```
+
+> **Reference implementation:** The upstream project maintains a full-featured Python pipe control tool at [VirtualDrivers/Python-VDD-Pipe-Control](https://github.com/VirtualDrivers/Python-VDD-Pipe-Control).
+
+### PowerShell
+
+```powershell
+$pipeName = "MTTVirtualDisplayPipe"
+
+function Send-DriverCommand {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Command
+    )
+
+    $pipe = [System.IO.Pipes.NamedPipeClientStream]::new(
+        ".", $pipeName, [System.IO.Pipes.PipeDirection]::InOut,
+        [System.IO.Pipes.PipeOptions]::Asynchronous)
+
+    try {
+        $pipe.Connect(10000)  # 10-second timeout
+
+        # Send command as UTF-16LE
+        $payload = [System.Text.Encoding]::Unicode.GetBytes($Command)
+        $pipe.Write($payload, 0, $payload.Length)
+        $pipe.Flush()
+
+        # Read until driver disconnects
+        $buffer = [byte[]]::new(512)
+        $sb = [System.Text.StringBuilder]::new()
+        while (($bytesRead = $pipe.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            [void]$sb.Append([System.Text.Encoding]::UTF8.GetString($buffer, 0, $bytesRead))
+        }
+
+        return $sb.ToString().Trim([char]0).Trim()
+    }
+    finally {
+        $pipe.Dispose()
+    }
+}
+
+# Usage:
+# $pong = Send-DriverCommand -Command "PING"
+# Write-Host "PING response: $pong"  # "PONG"
+#
+# Send-DriverCommand -Command "SETDISPLAYCOUNT 2"
+# Write-Host "Activated 2 virtual monitors"
+#
+# Send-DriverCommand -Command "SETDISPLAYCOUNT 0"
+# Write-Host "Removed all virtual monitors"
+```
+
+> **Note:** This function decodes responses as UTF-8, which is correct for all commands except `GETSETTINGS`. For `GETSETTINGS`, replace `[System.Text.Encoding]::UTF8` with `[System.Text.Encoding]::Unicode` (UTF-16LE).
 
 ---
 

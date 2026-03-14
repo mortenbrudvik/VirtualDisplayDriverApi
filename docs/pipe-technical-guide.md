@@ -2,6 +2,8 @@
 
 This document is a comprehensive technical reference for the named pipe protocol exposed by the upstream [Virtual-Display-Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver) (MttVDD) project. It targets developers building any tooling that sends commands to the MttVDD driver.
 
+> **Version target:** MttVDD driver releases 24.12+ (protocol stable since late 2024).
+
 ---
 
 ## 1. Overview
@@ -19,6 +21,8 @@ This pipe accepts plain-text commands for controlling virtual displays -- adding
 Monitor configuration -- resolutions, refresh rates, color formats, HDR parameters, EDID profiles -- is defined in a separate XML file at `C:\VirtualDisplayDriver\vdd_settings.xml`. The pipe protocol controls *how many* virtual monitors are active; the XML file controls *what each monitor looks like*. The `SETDISPLAYCOUNT` command sets the total number of active monitors, and each monitor inherits its profile from the corresponding entry in `vdd_settings.xml`.
 
 The driver device appears as `Root\MttVDD` in Device Manager. It is officially code-signed via SignPath.io, so no test signing is required on x64 systems.
+
+For quick interactive testing, the upstream project provides a companion Python control tool at [VirtualDisplay/Python-VDD-Pipe-Control](https://github.com/VirtualDisplay/Python-VDD-Pipe-Control) that implements the same pipe protocol.
 
 ---
 
@@ -157,7 +161,11 @@ After the XML update, the command triggers an internal `RELOAD_DRIVER` operation
 
 > **WARNING**: Rapid successive `SETDISPLAYCOUNT` calls can crash the driver. Each call triggers `RELOAD_DRIVER` which reinitializes the IddCx adapter. Too many reloads in quick succession can destabilize the driver. Space out calls and avoid using `SETDISPLAYCOUNT` in cleanup/teardown code where multiple calls may stack up.
 
+> **Timing:** A typical `SETDISPLAYCOUNT` reload takes 2–8 seconds. Clients should use a read timeout of at least 30 seconds to accommodate slower systems or higher display counts.
+
 The client MUST read until the driver disconnects before sending the next command. This ensures the reload operation has completed. Sending a second `SETDISPLAYCOUNT` while a reload is in progress can cause driver instability or crashes.
+
+> **Note:** If N exceeds the number of `<display>` entries in `vdd_settings.xml`, the driver repeats the last profile for the extra monitors.
 
 **Design implication**: Because the pipe only supports setting the total count (not adding/removing individual monitors), clients that want add/remove semantics must track the display count locally and increment/decrement it before each `SETDISPLAYCOUNT` call.
 
@@ -296,6 +304,46 @@ async Task<string> SendCommandAsync(string command, CancellationToken ct)
 ```
 
 > **Note:** This example uses UTF-8 decoding, which is correct for `PING` and `SETDISPLAYCOUNT` responses. For `GETSETTINGS`, accumulate raw bytes into a `MemoryStream` and decode with `Encoding.Unicode` after the read loop completes.
+
+#### Response Parsing Helpers
+
+```csharp
+// PING: check for success
+bool isAlive = response.Contains("PONG");
+
+// GPU queries: extract GPU names from log lines
+var gpuNames = response.Split('\n')
+    .Where(line => line.Contains("GPU:"))
+    .Select(line => line.Substring(line.IndexOf("GPU:") + 4).Trim())
+    .ToList();
+```
+
+#### Win32/C++ Client Example
+
+```cpp
+#include <windows.h>
+#include <string>
+#include <vector>
+
+std::string SendCommand(const std::wstring& command) {
+    HANDLE hPipe = CreateFileW(L"\\\\.\\pipe\\MTTVirtualDisplayPipe",
+        GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+    if (hPipe == INVALID_HANDLE_VALUE) return {};
+
+    DWORD written;
+    WriteFile(hPipe, command.c_str(), (DWORD)(command.size() * sizeof(wchar_t)), &written, nullptr);
+    FlushFileBuffers(hPipe);
+
+    std::string response;
+    char buf[512];
+    DWORD bytesRead;
+    while (ReadFile(hPipe, buf, sizeof(buf), &bytesRead, nullptr) && bytesRead > 0)
+        response.append(buf, bytesRead);
+
+    CloseHandle(hPipe);
+    return response;
+}
+```
 
 ### Command Serialization
 

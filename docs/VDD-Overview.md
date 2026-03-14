@@ -30,7 +30,7 @@ The project originated as a fork of `roshkins/IddSampleDriver` in October 2023 a
 | **Multi-GPU** | GPU friendly name selection for multi-adapter systems (resolved to PCI-bus LUID internally) |
 | **Platform Support** | x86, x64, ARM, ARM64 |
 | **Code Signing** | Officially signed via SignPath.io (no test-signing needed on x64) |
-| **Audio Driver** | Bundled virtual audio driver included |
+| **Audio Driver** | Bundled virtual audio driver included (note: signature issues on Windows Server 2025) |
 
 ---
 
@@ -101,6 +101,10 @@ The project originated as a fork of `roshkins/IddSampleDriver` in October 2023 a
 ### 4.4 Named Pipe IPC
 
 The driver creates a named pipe (`MTTVirtualDisplayPipe`) for runtime control using explicit `SECURITY_ATTRIBUTES` with SDDL string `D:(A;;GA;;;WD)` — `GA` (Generic All) granted to `WD` (World/Everyone), allowing full control from any local process.
+
+> **Security note:** The "Everyone" full-access permission is acceptable in this context because: (1) named pipes are local-only and not exposed over the network, (2) the driver runs as a UMDF user-mode process with limited system privileges, and (3) the pipe commands control only virtual display configuration — they cannot access system resources, read files, or escalate privileges. Any local process that could connect to the pipe already has equivalent or greater access to the display subsystem through standard Windows APIs.
+
+A community Python wrapper is available at [VirtualDrivers/Python-VDD-Pipe-Control](https://github.com/VirtualDrivers/Python-VDD-Pipe-Control) for programmatic control via this protocol.
 
 The pipe supports 17 commands:
 
@@ -203,9 +207,10 @@ The `option.txt` file provides 72 resolution presets ranging from 640x480 to 102
 
 | Tool | Description |
 |------|-------------|
-| **Virtual Driver Control (VDC)** | GUI application for installing, managing, and configuring virtual displays |
+| **[Virtual Driver Control (VDC)](https://github.com/VirtualDrivers/Virtual-Driver-Control)** | GUI application for installing, managing, and configuring virtual displays |
 | **Community PowerShell Scripts** | 13 automation scripts (12 PowerShell + 1 batch) for install, resolution changes, HDR toggle, etc. |
 | **GetIddCx** | CLI utility to query the installed IddCx framework version |
+| **[Python-VDD-Pipe-Control](https://github.com/VirtualDrivers/Python-VDD-Pipe-Control)** | Community Python wrapper for named-pipe IPC control of the driver |
 
 ---
 
@@ -221,9 +226,10 @@ The `option.txt` file provides 72 resolution presets ranging from 640x480 to 102
 ### Installation
 
 1. Download the latest release or use the VDC GUI installer
-2. Driver installs to `C:\VirtualDisplayDriver\`
-3. Device appears as `Root\MttVDD` in Device Manager
-4. Configure via `vdd_settings.xml`
+2. Alternatively, install via Winget: `winget install -e --id VirtualDrivers.Virtual-Display-Driver`
+3. Driver installs to `C:\VirtualDisplayDriver\`
+4. Device appears as `Root\MttVDD` in Device Manager
+5. Configure via `vdd_settings.xml`
 
 ### Uninstallation
 
@@ -237,10 +243,10 @@ The `option.txt` file provides 72 resolution presets ranging from 640x480 to 102
 
 | Issue | Severity |
 |-------|----------|
-| Black screen on Windows 25H2 | High |
+| Black screen on Windows 25H2 ([#474](https://github.com/VirtualDrivers/Virtual-Display-Driver/issues/474)) | High |
 | GPU/chipset driver update conflicts | High |
 | Cannot set as primary display (Win 11 24H2/25H2) | Medium |
-| Multiple virtual monitors cause stutter | Medium |
+| Multiple virtual monitors cause stutter (especially under heavy load or high refresh rates) | Medium |
 | Installation failures (recurring) | Medium |
 
 ### Technical Limitations
@@ -262,6 +268,7 @@ The `option.txt` file provides 72 resolution presets ranging from 640x480 to 102
 - **Development Pace:** Moderate, with regular updates
 - **Most Requested Feature:** C/C++ API for programmatic control
 - **Other Requests:** Minimize to tray, custom monitor IDs, auto start/stop, resolution changes without restart
+- **Contributing:** Contributions are welcome via [pull requests and issues](https://github.com/VirtualDrivers/Virtual-Display-Driver/issues) on the main repository
 
 ---
 
