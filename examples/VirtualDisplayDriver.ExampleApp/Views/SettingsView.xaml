@@ -1,0 +1,173 @@
+<UserControl x:Class="VirtualDisplayDriver.ExampleApp.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <!-- Header -->
+            <TextBlock Text="Driver Settings" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBlock Text="Configure Virtual Display Driver features and logging"
+                       Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,20" />
+
+            <!-- Loading -->
+            <ProgressBar IsIndeterminate="True"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+                         Margin="0,0,0,12" />
+
+            <!-- Error -->
+            <Border Background="#33F38BA8" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
+                    Visibility="{Binding ErrorMessage, Converter={StaticResource NullToCollapsed}, FallbackValue=Collapsed}">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentError}" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Feature Toggles (Reload-Triggering) -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <TextBlock Text="FEATURE SETTINGS" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
+                        <Border Background="#33F9E2AF" CornerRadius="4" Padding="6,2" Margin="12,0,0,0">
+                            <TextBlock Text="Triggers driver reload (30s cooldown)" FontSize="10"
+                                       Foreground="{StaticResource AccentWarning}" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- HDR+ -->
+                    <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ToggleSwitch}"
+                                          IsChecked="{Binding HdrPlusEnabled}"
+                                          Command="{Binding ToggleHdrPlusCommand}" />
+                            <StackPanel>
+                                <TextBlock Text="HDR+" FontSize="14" />
+                                <TextBlock Text="Enable HDR Plus mode for virtual displays"
+                                           FontSize="12" Foreground="{StaticResource TextDim}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- SDR 10-bit -->
+                    <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ToggleSwitch}"
+                                          IsChecked="{Binding Sdr10BitEnabled}"
+                                          Command="{Binding ToggleSdr10BitCommand}" />
+                            <StackPanel>
+                                <TextBlock Text="SDR 10-bit" FontSize="14" />
+                                <TextBlock Text="Enable 10-bit SDR color depth"
+                                           FontSize="12" Foreground="{StaticResource TextDim}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Custom EDID -->
+                    <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ToggleSwitch}"
+                                          IsChecked="{Binding CustomEdidEnabled}"
+                                          Command="{Binding ToggleCustomEdidCommand}" />
+                            <StackPanel>
+                                <TextBlock Text="Custom EDID" FontSize="14" />
+                                <TextBlock Text="Use custom EDID profiles for monitor emulation"
+                                           FontSize="12" Foreground="{StaticResource TextDim}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Prevent Spoof -->
+                    <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ToggleSwitch}"
+                                          IsChecked="{Binding PreventSpoofEnabled}"
+                                          Command="{Binding TogglePreventSpoofCommand}" />
+                            <StackPanel>
+                                <TextBlock Text="Prevent Spoof" FontSize="14" />
+                                <TextBlock Text="Prevent display spoofing detection"
+                                           FontSize="12" Foreground="{StaticResource TextDim}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- CEA Override -->
+                    <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ToggleSwitch}"
+                                          IsChecked="{Binding CeaOverrideEnabled}"
+                                          Command="{Binding ToggleCeaOverrideCommand}" />
+                            <StackPanel>
+                                <TextBlock Text="CEA Override" FontSize="14" />
+                                <TextBlock Text="Override EDID CEA block for extended capabilities"
+                                           FontSize="12" Foreground="{StaticResource TextDim}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Hardware Cursor -->
+                    <Border Padding="0,12">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ToggleSwitch}"
+                                          IsChecked="{Binding HardwareCursorEnabled}"
+                                          Command="{Binding ToggleHardwareCursorCommand}" />
+                            <StackPanel>
+                                <TextBlock Text="Hardware Cursor" FontSize="14" />
+                                <TextBlock Text="Enable hardware cursor on virtual displays"
+                                           FontSize="12" Foreground="{StaticResource TextDim}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Logging Settings (No Reload) -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="LOGGING" FontSize="10" Foreground="{StaticResource TextDim}"
+                               FontWeight="SemiBold" Margin="0,0,0,4" />
+
+                    <!-- Debug Logging -->
+                    <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ToggleSwitch}"
+                                          IsChecked="{Binding DebugLoggingEnabled}"
+                                          Command="{Binding ToggleDebugLoggingCommand}" />
+                            <StackPanel>
+                                <TextBlock Text="Debug Logging" FontSize="14" />
+                                <TextBlock Text="Enable verbose debug log output"
+                                           FontSize="12" Foreground="{StaticResource TextDim}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- General Logging -->
+                    <Border Padding="0,12">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right"
+                                          Style="{StaticResource ToggleSwitch}"
+                                          IsChecked="{Binding LoggingEnabled}"
+                                          Command="{Binding ToggleLoggingCommand}" />
+                            <StackPanel>
+                                <TextBlock Text="General Logging" FontSize="14" />
+                                <TextBlock Text="Enable general log output"
+                                           FontSize="12" Foreground="{StaticResource TextDim}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Refresh Button -->
+            <Button Content="Refresh Settings" Command="{Binding RefreshSettingsCommand}"
+                    HorizontalAlignment="Left" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

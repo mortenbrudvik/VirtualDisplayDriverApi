@@ -1,0 +1,123 @@
+<UserControl x:Class="VirtualDisplayDriver.ExampleApp.Views.StatusView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:VirtualDisplayDriver.ExampleApp.Converters">
+
+    <UserControl.Resources>
+        <converters:BoolToBrushConverter x:Key="BoolToBrush" />
+        <converters:BoolToStatusConverter x:Key="BoolYesNo" TrueText="Yes" FalseText="No" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <!-- Header -->
+            <TextBlock Text="Status Overview" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBlock Text="Driver health and connection information"
+                       Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,20" />
+
+            <!-- Loading -->
+            <ProgressBar IsIndeterminate="True"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+                         Margin="0,0,0,12" />
+
+            <!-- Error -->
+            <Border Background="#33F38BA8" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
+                    Visibility="{Binding ErrorMessage, Converter={StaticResource NullToCollapsed}, FallbackValue=Collapsed}">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentError}" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Stat Cards Grid -->
+            <UniformGrid Columns="3" Margin="0,0,0,16">
+                <!-- Pipe Running -->
+                <Border Style="{StaticResource Card}" Margin="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock Text="PIPE STATUS" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Ellipse Width="12" Height="12"
+                                     Fill="{Binding IsPipeRunning, Converter={StaticResource BoolToBrush}}"
+                                     Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding IsPipeRunning, Converter={StaticResource BoolYesNo}}"
+                                       FontSize="20" FontWeight="Bold" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Driver Installed -->
+                <Border Style="{StaticResource Card}" Margin="4,0,4,8">
+                    <StackPanel>
+                        <TextBlock Text="DRIVER INSTALLED" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Ellipse Width="12" Height="12"
+                                     Fill="{Binding IsDriverInstalled, Converter={StaticResource BoolToBrush}}"
+                                     Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding IsDriverInstalled, Converter={StaticResource BoolYesNo}}"
+                                       FontSize="20" FontWeight="Bold" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Connected -->
+                <Border Style="{StaticResource Card}" Margin="8,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="CONNECTED" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Ellipse Width="12" Height="12"
+                                     Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}"
+                                     Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding IsConnected, Converter={StaticResource BoolYesNo}}"
+                                       FontSize="20" FontWeight="Bold" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Ping -->
+                <Border Style="{StaticResource Card}" Margin="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock Text="LAST PING" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Ellipse Width="12" Height="12"
+                                     Fill="{Binding PingResult, Converter={StaticResource BoolToBrush}}"
+                                     Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding PingResult, Converter={StaticResource BoolYesNo}}"
+                                       FontSize="20" FontWeight="Bold" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Display Count -->
+                <Border Style="{StaticResource Card}" Margin="4,0,4,8">
+                    <StackPanel>
+                        <TextBlock Text="VIRTUAL DISPLAYS" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding DisplayCount}" FontSize="28" FontWeight="Bold"
+                                   Foreground="{StaticResource AccentPrimary}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- IddCx Version -->
+                <Border Style="{StaticResource Card}" Margin="8,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="IDDCX VERSION" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding IddCxVersion, FallbackValue='N/A'}" FontSize="16" FontWeight="Bold"
+                                   Foreground="{StaticResource AccentPrimary}" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- Install Path -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="INSTALL PATH" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding InstallPath, FallbackValue='Not detected'}"
+                               FontSize="13" Margin="0,6,0,0" Foreground="{StaticResource TextSecondary}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Actions -->
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Refresh" Command="{Binding RefreshStatusCommand}" Margin="0,0,8,0" />
+                <Button Content="Ping Driver" Command="{Binding PingCommand}" Style="{StaticResource SecondaryButton}" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

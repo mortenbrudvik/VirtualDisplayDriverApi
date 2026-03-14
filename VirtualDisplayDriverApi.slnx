@@ -2,6 +2,9 @@
   <Folder Name="/src/">
     <Project Path="src/VirtualDisplayDriver/VirtualDisplayDriver.csproj" />
   </Folder>
+  <Folder Name="/examples/">
+    <Project Path="examples/VirtualDisplayDriver.ExampleApp/VirtualDisplayDriver.ExampleApp.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/VirtualDisplayDriver.IntegrationTests/VirtualDisplayDriver.IntegrationTests.csproj" />
     <Project Path="tests/VirtualDisplayDriver.Tests/VirtualDisplayDriver.Tests.csproj" />

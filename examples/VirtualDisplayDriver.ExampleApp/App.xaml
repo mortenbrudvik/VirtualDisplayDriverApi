@@ -1,0 +1,19 @@
+<Application x:Class="VirtualDisplayDriver.ExampleApp.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:VirtualDisplayDriver.ExampleApp.Converters"
+             ShutdownMode="OnMainWindowClose">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/DarkTheme.xaml" />
+                <ResourceDictionary Source="Themes/Controls.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+            <converters:NullToCollapsedConverter x:Key="NullToCollapsed" />
+        </ResourceDictionary>
+    </Application.Resources>
+
+</Application>

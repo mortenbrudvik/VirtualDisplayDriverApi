@@ -1,0 +1,92 @@
+<UserControl x:Class="VirtualDisplayDriver.ExampleApp.Views.DisplayManagementView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:VirtualDisplayDriver.ExampleApp.Converters">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <converters:InverseBoolConverter x:Key="InverseBool" />
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <!-- Header -->
+            <TextBlock Text="Display Management" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBlock Text="Add, remove, or set the number of virtual displays"
+                       Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,20" />
+
+            <!-- Loading -->
+            <ProgressBar IsIndeterminate="True"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+                         Margin="0,0,0,12" />
+
+            <!-- Error -->
+            <Border Background="#33F38BA8" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
+                    Visibility="{Binding ErrorMessage, Converter={StaticResource NullToCollapsed}, FallbackValue=Collapsed}">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentError}" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Current Count Display -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,20">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="CURRENT DISPLAYS" FontSize="10" Foreground="{StaticResource TextDim}"
+                               FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding CurrentDisplayCount}" FontSize="56" FontWeight="Bold"
+                               Foreground="{StaticResource AccentPrimary}" HorizontalAlignment="Center"
+                               Margin="0,4,0,4" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content=" − " FontSize="18" FontWeight="Bold"
+                                Command="{Binding RemoveDisplayCommand}"
+                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
+                                Style="{StaticResource SecondaryButton}"
+                                Width="48" Padding="0,4" Margin="0,0,8,0" />
+                        <Button Content=" + " FontSize="18" FontWeight="Bold"
+                                Command="{Binding AddDisplayCommand}"
+                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
+                                Style="{StaticResource SecondaryButton}"
+                                Width="48" Padding="0,4" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Set Specific Count -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="SET DISPLAY COUNT" FontSize="10" Foreground="{StaticResource TextDim}"
+                               FontWeight="SemiBold" Margin="0,0,0,12" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Slider Grid.Column="0"
+                                Minimum="0" Maximum="10"
+                                IsSnapToTickEnabled="True" TickFrequency="1"
+                                Value="{Binding TargetDisplayCount}"
+                                VerticalAlignment="Center"
+                                Margin="0,0,16,0" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding TargetDisplayCount}"
+                                   FontSize="18" FontWeight="Bold"
+                                   Foreground="{StaticResource AccentPrimary}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,16,0"
+                                   MinWidth="24" TextAlignment="Center" />
+                        <Button Grid.Column="2"
+                                Content="Set Count"
+                                Command="{Binding SetDisplayCountCommand}"
+                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Remove All -->
+            <Button Content="Remove All Displays"
+                    Command="{Binding RemoveAllCommand}"
+                    IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
+                    Style="{StaticResource DangerButton}"
+                    HorizontalAlignment="Left" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
