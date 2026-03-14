@@ -2,6 +2,8 @@
 
 API reference for the named-pipe control protocol exposed by the upstream [Virtual-Display-Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver) (MttVDD). This protocol lets client applications manage virtual monitors at runtime by sending plain-text commands over a Windows named pipe.
 
+> **See also:** [Pipe Technical Deep Dive](named-pipe-technical-deep-dive.md) for sequence diagrams, the `ReloadDriver` crash root-cause analysis, thread-safety rationale, and advanced client implementation patterns.
+
 > **Version target:** MttVDD driver releases 24.12+ (protocol stable since late 2024).
 
 ---
@@ -31,6 +33,8 @@ while ((bytesRead = await pipe.ReadAsync(buffer)) > 0)
 
 // sb.ToString() == "PONG"
 ```
+
+> **IMPORTANT: No display count query.** The pipe protocol has no command to query the current number of active virtual monitors. Clients that need add/remove semantics must **track the display count locally** and pass the updated total to `SETDISPLAYCOUNT`. This local count can become stale if another client or driver restart changes the count externally.
 
 ---
 
@@ -408,7 +412,7 @@ Clients should read all data until the pipe disconnects (read returns 0 bytes) t
 
 ## 6. Complete Command Reference
 
-Summary of all 17 commands supported by the driver's `HandleClient` function:
+Summary of all 17 commands supported by the driver's `HandleClient` function. For an extended version with response content descriptions, see the [Pipe Technical Deep Dive — Command Summary](named-pipe-technical-deep-dive.md#appendix-quick-reference).
 
 | Command | Parameters | Triggers ReloadDriver | Response encoding |
 |---|---|---|---|
@@ -531,6 +535,27 @@ Console.WriteLine("Activated 2 virtual monitors");
 
 await SendDriverCommandAsync("SETDISPLAYCOUNT 0");
 Console.WriteLine("Removed all virtual monitors");
+```
+
+### Response Parsing Helpers
+
+Most responses are log messages, not structured data. These snippets help extract useful information:
+
+```csharp
+// PING: check for success
+bool isDriverAlive = response.Contains("PONG");
+
+// GPU queries: extract GPU names from log lines
+var gpuNames = response.Split('\n')
+    .Where(line => line.Contains("GPU:"))
+    .Select(line => line.Substring(line.IndexOf("GPU:") + 4).Trim())
+    .ToList();
+
+// GETSETTINGS: parse the structured response
+// Response format: "SETTINGS DEBUG=true|false LOG=true|false"
+var match = Regex.Match(settings, @"DEBUG=(\w+)\s+LOG=(\w+)");
+bool debugEnabled = match.Groups[1].Value == "true";
+bool loggingEnabled = match.Groups[2].Value == "true";
 ```
 
 ### C++

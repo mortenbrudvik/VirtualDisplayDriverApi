@@ -2,6 +2,8 @@
 
 This document is a comprehensive technical reference for the named pipe protocol exposed by the upstream [Virtual-Display-Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver) (MttVDD) project. It targets developers building any tooling that sends commands to the MttVDD driver.
 
+> **See also:** [Pipe API Reference](named-pipe-api-reference.md) for a concise quick-start guide, multi-language client examples (C#, C++, Python, PowerShell), and per-command property tables.
+
 > **Version target:** MttVDD driver releases 24.12+ (protocol stable since late 2024).
 
 ---

@@ -194,6 +194,24 @@ The driver is configured via an XML file at `C:\VirtualDisplayDriver\vdd_setting
 - **`monitor_emulation`** - Physical dimension emulation and manufacturer spoofing (loaded but currently unused in driver)
 - **`edid_integration`** - Auto-configure from EDID profiles (`enabled`, `auto_configure_from_edid`, `edid_profile_path`, `override_manual_settings`, `fallback_on_error`)
 
+**Example `vdd_settings.xml` structure** (simplified):
+
+```xml
+<virtual_display_settings>
+  <display>
+    <resolutions>
+      <resolution width="1920" height="1080" />
+      <resolution width="2560" height="1440" />
+    </resolutions>
+    <refresh_rates>
+      <rate>60</rate>
+      <rate>120</rate>
+      <rate>59.94</rate>
+    </refresh_rates>
+  </display>
+</virtual_display_settings>
+```
+
 The `option.txt` file provides 72 resolution presets ranging from 640x480 to 10240x4320.
 
 > **Note:** The upstream `option.txt` contains likely typos in three entries:
