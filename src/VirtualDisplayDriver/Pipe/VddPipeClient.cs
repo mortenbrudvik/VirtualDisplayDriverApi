@@ -35,7 +35,12 @@ public class VddPipeClient : IVddPipeClient
         => SendUtf8CommandAsync(command, ct);
 
     public Task<string> SetGpuAsync(string gpuName, CancellationToken ct = default)
-        => SendUtf8CommandAsync($"SETGPU \"{gpuName}\"", ct);
+    {
+        if (gpuName.AsSpan().IndexOfAny(['"', '\n', '\r', '\0']) >= 0)
+            throw new ArgumentException(
+                "GPU name contains invalid characters (quotes, newlines, or null).", nameof(gpuName));
+        return SendUtf8CommandAsync($"SETGPU \"{gpuName}\"", ct);
+    }
 
     private async Task<string> SendUtf8CommandAsync(string command, CancellationToken ct)
     {
@@ -57,16 +62,27 @@ public class VddPipeClient : IVddPipeClient
 
             await pipe.ConnectAsync(connectCts.Token);
 
+            if (command.Length > PipeConstants.MaxCommandLengthChars)
+                throw new ArgumentException(
+                    $"Command exceeds maximum length of {PipeConstants.MaxCommandLengthChars} characters (was {command.Length}). The VDD driver silently truncates longer commands.",
+                    nameof(command));
+
             var payload = Encoding.Unicode.GetBytes(command);
             await pipe.WriteAsync(payload, ct);
             await pipe.FlushAsync(ct);
 
+            using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            readCts.CancelAfter(_options.ReadTimeout);
+
             using var ms = new MemoryStream();
             var buffer = new byte[PipeConstants.ReadBufferSize];
             int bytesRead;
-            while ((bytesRead = await pipe.ReadAsync(buffer, ct)) > 0)
+            while ((bytesRead = await pipe.ReadAsync(buffer, readCts.Token)) > 0)
             {
                 ms.Write(buffer, 0, bytesRead);
+                if (ms.Length > PipeConstants.MaxResponseSize)
+                    throw new PipeConnectionException(
+                        $"Response exceeded maximum size of {PipeConstants.MaxResponseSize} bytes for command: {command}");
             }
 
             _logger.LogDebug("Command {Command} completed, received {ByteCount} bytes", command, ms.Length);
@@ -74,9 +90,9 @@ public class VddPipeClient : IVddPipeClient
         }
         catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
         {
-            _logger.LogWarning("Connection timeout for command: {Command}", command);
+            _logger.LogWarning("Timeout for command: {Command}", command);
             throw new PipeConnectionException(
-                $"Connection to VDD pipe timed out after {_options.ConnectTimeout.TotalSeconds}s for command: {command}", ex);
+                $"VDD pipe operation timed out for command: {command}", ex);
         }
         catch (IOException ex)
         {

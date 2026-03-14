@@ -1,6 +1,5 @@
 using FluentAssertions;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using VirtualDisplayDriver.Pipe;
 using Xunit;
 
@@ -23,14 +22,14 @@ public class VirtualDisplayManagerTests
     }
 
     [Fact]
-    public async Task Constructor_ThrowsOnNullClient()
+    public void Constructor_ThrowsOnNullClient()
     {
         var act = () => new VirtualDisplayManager(null!, _options);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task Constructor_ThrowsOnNullOptions()
+    public void Constructor_ThrowsOnNullOptions()
     {
         var act = () => new VirtualDisplayManager(_mockClient, null!);
         act.Should().Throw<ArgumentNullException>();
