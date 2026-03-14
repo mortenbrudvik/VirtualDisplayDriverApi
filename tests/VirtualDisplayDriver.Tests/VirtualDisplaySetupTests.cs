@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using System.Text.Json;
 using FluentAssertions;
@@ -273,6 +274,219 @@ public class VirtualDisplaySetupTests
             .WithMessage("*not found*");
     }
 
+    // --- InstallDriverAsync ---
+
+    private const string EnumDriversWithVdd = """
+        Published Name: oem42.inf
+        Original Name:  MttVDD.inf
+        Provider Name:  MikeTheTech
+        Class Name:     Display
+        """;
+
+    private VirtualDisplaySetup CreateSetupWithFakeDownload(byte[] zipBytes)
+    {
+        var callCount = 0;
+        var httpClient = new HttpClient(new FakeHttpHandler(request =>
+        {
+            callCount++;
+            if (callCount == 1)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(ValidReleaseJson)
+                };
+            }
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(zipBytes)
+                {
+                    Headers = { ContentLength = zipBytes.Length }
+                }
+            };
+        }));
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Test/1.0");
+        return new VirtualDisplaySetup(httpClient, _processRunner);
+    }
+
+    private void MockSuccessfulInstall()
+    {
+        // cmd.exe wraps pnputil for output capture
+        _processRunner.RunElevatedAsync("cmd.exe", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(0);
+        // Post-install: verify driver is in store
+        _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-drivers", Arg.Any<CancellationToken>())
+            .Returns(EnumDriversWithVdd);
+        // Post-install: check if device exists (return VDD device so it skips device node creation)
+        _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-devices /class Display", Arg.Any<CancellationToken>())
+            .Returns(EnabledDeviceOutput);
+    }
+
+    [Fact]
+    public async Task InstallDriverAsync_DownloadsExtractsAndInstalls()
+    {
+        var zipBytes = CreateZipWithInfFile();
+        var setup = CreateSetupWithFakeDownload(zipBytes);
+        MockSuccessfulInstall();
+
+        var installPath = Path.Combine(Path.GetTempPath(), $"vdd-test-{Guid.NewGuid():N}");
+        try
+        {
+            await setup.InstallDriverAsync(installPath);
+
+            await _processRunner.Received(1).RunElevatedAsync(
+                "cmd.exe",
+                Arg.Is<string>(s => s.Contains("/add-driver") && s.Contains("MttVDD.inf") && s.Contains("/install")),
+                Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            if (Directory.Exists(installPath))
+                Directory.Delete(installPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InstallDriverAsync_ReportsProgressThroughAllStages()
+    {
+        var zipBytes = CreateZipWithInfFile();
+        var setup = CreateSetupWithFakeDownload(zipBytes);
+        MockSuccessfulInstall();
+
+        var stages = new List<SetupStage>();
+        var progress = new Progress<SetupProgress>(p => stages.Add(p.Stage));
+
+        var installPath = Path.Combine(Path.GetTempPath(), $"vdd-test-{Guid.NewGuid():N}");
+        try
+        {
+            await setup.InstallDriverAsync(installPath, progress);
+
+            // Allow Progress<T> callbacks to complete (they're posted to SynchronizationContext)
+            await Task.Delay(100);
+
+            stages.Should().Contain(SetupStage.FetchingRelease);
+            stages.Should().Contain(SetupStage.Downloading);
+            stages.Should().Contain(SetupStage.Extracting);
+            stages.Should().Contain(SetupStage.InstallingDriver);
+            stages.Should().Contain(SetupStage.Complete);
+        }
+        finally
+        {
+            if (Directory.Exists(installPath))
+                Directory.Delete(installPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InstallDriverAsync_NoDeviceAfterInstall_CreatesDeviceNode()
+    {
+        var zipBytes = CreateZipWithInfFile();
+        var setup = CreateSetupWithFakeDownload(zipBytes);
+
+        // pnputil succeeds and driver is in store, but NO device exists
+        _processRunner.RunElevatedAsync("cmd.exe", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(0);
+        _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-drivers", Arg.Any<CancellationToken>())
+            .Returns(EnumDriversWithVdd);
+        _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-devices /class Display", Arg.Any<CancellationToken>())
+            .Returns(NoVddDeviceOutput);
+
+        // PowerShell device creation (elevated)
+        _processRunner.RunElevatedAsync("powershell.exe", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(0);
+
+        var installPath = Path.Combine(Path.GetTempPath(), $"vdd-test-{Guid.NewGuid():N}");
+        try
+        {
+            // Will throw because the PowerShell script output file won't exist in tests,
+            // but we verify the elevated PowerShell call was attempted
+            var act = () => setup.InstallDriverAsync(installPath);
+            await act.Should().ThrowAsync<SetupException>()
+                .WithMessage("*Failed to create*");
+
+            await _processRunner.Received(1).RunElevatedAsync(
+                "powershell.exe",
+                Arg.Is<string>(s => s.Contains("-File")),
+                Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            if (Directory.Exists(installPath))
+                Directory.Delete(installPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InstallDriverAsync_PnpUtilFails_ThrowsSetupException()
+    {
+        var zipBytes = CreateZipWithInfFile();
+        var setup = CreateSetupWithFakeDownload(zipBytes);
+
+        _processRunner.RunElevatedAsync("cmd.exe", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(1);
+
+        var installPath = Path.Combine(Path.GetTempPath(), $"vdd-test-{Guid.NewGuid():N}");
+        try
+        {
+            var act = () => setup.InstallDriverAsync(installPath);
+            await act.Should().ThrowAsync<SetupException>()
+                .WithMessage("*exit code*");
+        }
+        finally
+        {
+            if (Directory.Exists(installPath))
+                Directory.Delete(installPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InstallDriverAsync_DriverNotInStoreAfterInstall_ThrowsSetupException()
+    {
+        var zipBytes = CreateZipWithInfFile();
+        var setup = CreateSetupWithFakeDownload(zipBytes);
+
+        _processRunner.RunElevatedAsync("cmd.exe", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(0);
+        // Driver not found in store after pnputil "succeeded"
+        _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-drivers", Arg.Any<CancellationToken>())
+            .Returns("Published Name: oem15.inf\nOriginal Name: nvdm.inf\n");
+
+        var installPath = Path.Combine(Path.GetTempPath(), $"vdd-test-{Guid.NewGuid():N}");
+        try
+        {
+            var act = () => setup.InstallDriverAsync(installPath);
+            await act.Should().ThrowAsync<SetupException>()
+                .WithMessage("*not found in the driver store*");
+        }
+        finally
+        {
+            if (Directory.Exists(installPath))
+                Directory.Delete(installPath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InstallDriverAsync_GitHubApiFails_ThrowsSetupException()
+    {
+        var httpClient = new HttpClient(new FakeHttpHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.InternalServerError)));
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Test/1.0");
+        var setup = new VirtualDisplaySetup(httpClient, _processRunner);
+
+        var act = () => setup.InstallDriverAsync();
+        await act.Should().ThrowAsync<SetupException>()
+            .WithMessage("*500*");
+    }
+
+    [Fact]
+    public async Task InstallDriverAsync_Cancellation_ThrowsOperationCanceled()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = () => _setup.InstallDriverAsync(ct: cts.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     // --- UninstallDriverAsync ---
 
     [Fact]
@@ -309,6 +523,39 @@ public class VirtualDisplaySetupTests
             .WithMessage("*not found*");
     }
 
+    [Fact]
+    public async Task UninstallDriverAsync_PnpUtilFails_ThrowsSetupException()
+    {
+        var enumDriversOutput = """
+            Published Name: oem42.inf
+            Original Name:  MttVDD.inf
+            Provider Name:  MikeTheTech
+            Class Name:     Display
+            """;
+
+        _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-drivers", Arg.Any<CancellationToken>())
+            .Returns(enumDriversOutput);
+        _processRunner.RunElevatedAsync("pnputil.exe", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(3);
+
+        var act = () => _setup.UninstallDriverAsync();
+        await act.Should().ThrowAsync<SetupException>()
+            .WithMessage("*exit code*");
+    }
+
+    [Fact]
+    public async Task UninstallDriverAsync_Cancellation_ThrowsOperationCanceled()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-drivers", Arg.Any<CancellationToken>())
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        var act = () => _setup.UninstallDriverAsync(cts.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     // --- GetAssetName ---
 
     [Fact]
@@ -319,7 +566,19 @@ public class VirtualDisplaySetupTests
         name.Should().EndWith(".Driver.Only.zip");
     }
 
-    // --- Helper ---
+    // --- Helpers ---
+
+    private static byte[] CreateZipWithInfFile()
+    {
+        using var ms = new MemoryStream();
+        using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var entry = archive.CreateEntry("VirtualDisplayDriver/MttVDD.inf");
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write("[Version]\nSignature=\"$WINDOWS NT$\"");
+        }
+        return ms.ToArray();
+    }
 
     private class FakeHttpHandler : DelegatingHandler
     {

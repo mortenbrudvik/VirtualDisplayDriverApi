@@ -57,8 +57,6 @@ public static class VirtualDisplayDetection
 
     /// <summary>
     /// Reads the configured display count from vdd_settings.xml.
-    /// This is the source of truth — the driver persists the count here
-    /// after each SETDISPLAYCOUNT command.
     /// Returns 0 if the settings file is not found or cannot be parsed.
     /// </summary>
     public static int GetConfiguredDisplayCount()
@@ -80,6 +78,38 @@ public static class VirtualDisplayDetection
         catch (Exception ex) when (ex is XmlException or IOException or UnauthorizedAccessException)
         {
             return 0;
+        }
+    }
+
+    /// <summary>
+    /// Writes the display count to vdd_settings.xml.
+    /// This matches how the official VDD Control app works — it writes XML first,
+    /// then sends a pipe command to trigger a driver reload.
+    /// </summary>
+    public static bool SetConfiguredDisplayCount(int count)
+    {
+        var settingsPath = GetSettingsFilePath();
+        if (settingsPath is null) return false;
+
+        try
+        {
+            var doc = new XmlDocument();
+            doc.PreserveWhitespace = true;
+            doc.Load(settingsPath);
+
+            var countNode = doc.SelectSingleNode("//count");
+            if (countNode is not null)
+            {
+                countNode.InnerText = count.ToString();
+                doc.Save(settingsPath);
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is XmlException or IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 

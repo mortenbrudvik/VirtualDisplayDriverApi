@@ -60,18 +60,54 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
                 .FirstOrDefault()
                 ?? throw new SetupException($"{InfFileName} not found in {installPath}. Extraction may have failed.");
 
-            // Install driver via pnputil (elevated)
+            // Install driver via pnputil (elevated).
+            // Use cmd /c to capture pnputil output to a temp file, since elevated
+            // processes launched with UseShellExecute cannot have stdout redirected.
             progress?.Report(new SetupProgress(SetupStage.InstallingDriver, 0.90, "Installing driver (admin required)..."));
             _logger?.LogInformation("Installing driver from {InfPath}", infPath);
 
-            var exitCode = await _processRunner.RunElevatedAsync(
-                "pnputil.exe", $"/add-driver \"{infPath}\" /install", ct);
+            var pnpOutputFile = Path.Combine(Path.GetTempPath(), $"vdd-pnputil-{Guid.NewGuid():N}.log");
+            try
+            {
+                var exitCode = await _processRunner.RunElevatedAsync(
+                    "cmd.exe", $"/c pnputil.exe /add-driver \"{infPath}\" /install > \"{pnpOutputFile}\" 2>&1", ct);
 
-            if (exitCode != 0)
-                throw new SetupException($"Driver installation failed. pnputil exit code: {exitCode}", exitCode);
+                string? pnpOutput = null;
+                if (File.Exists(pnpOutputFile))
+                {
+                    pnpOutput = await File.ReadAllTextAsync(pnpOutputFile, ct);
+                    _logger?.LogInformation("pnputil output: {Output}", pnpOutput);
+                }
 
-            progress?.Report(new SetupProgress(SetupStage.Complete, 1.0, "Driver installed successfully."));
-            _logger?.LogInformation("Driver installed successfully from release {Tag}", release.TagName);
+                if (exitCode != 0)
+                    throw new SetupException(
+                        $"Driver installation failed (exit code {exitCode}).{(pnpOutput != null ? $" pnputil: {pnpOutput.Trim()}" : "")}", exitCode);
+
+                // Verify the driver registered with the store
+                var oemInf = await FindOemInfNameAsync(ct);
+                if (oemInf == null)
+                    throw new SetupException(
+                        $"pnputil returned success but the driver was not found in the driver store." +
+                        $"{(pnpOutput != null ? $" pnputil output: {pnpOutput.Trim()}" : "")}");
+
+                // For root-enumerated virtual devices, pnputil /add-driver only adds to the store.
+                // We must explicitly create the device node if one doesn't exist yet.
+                var existingDevice = await GetDeviceInfoAsync(ct);
+                if (existingDevice == null)
+                {
+                    progress?.Report(new SetupProgress(SetupStage.InstallingDriver, 0.95, "Creating virtual display device..."));
+                    _logger?.LogInformation("No device node found — creating root-enumerated device for {Inf}", oemInf);
+                    await CreateDeviceNodeAsync(infPath, ct);
+                }
+
+                progress?.Report(new SetupProgress(SetupStage.Complete, 1.0, "Driver installed successfully."));
+                _logger?.LogInformation("Driver installed successfully from release {Tag} as {OemInf}", release.TagName, oemInf);
+            }
+            finally
+            {
+                try { if (File.Exists(pnpOutputFile)) File.Delete(pnpOutputFile); }
+                catch { /* best-effort cleanup */ }
+            }
         }
         finally
         {
@@ -90,6 +126,8 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
         var oemInfName = await FindOemInfNameAsync(ct)
             ?? throw new SetupException("Virtual Display Driver not found in installed drivers.");
 
+        // /uninstall /force: removes driver from devices and deletes the driver package.
+        // Device nodes are kept so /add-driver /install can reattach without a reboot.
         var exitCode = await _processRunner.RunElevatedAsync(
             "pnputil.exe", $"/delete-driver \"{oemInfName}\" /uninstall /force", ct);
 
@@ -109,70 +147,77 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
 
     public async Task<DeviceInfo?> GetDeviceInfoAsync(CancellationToken ct = default)
     {
+        var all = await GetAllDeviceInfoAsync(ct);
+        return all.Count > 0 ? all[0] : null;
+    }
+
+    public async Task<IReadOnlyList<DeviceInfo>> GetAllDeviceInfoAsync(CancellationToken ct = default)
+    {
         var output = await _processRunner.RunAndCaptureOutputAsync(
             "pnputil.exe", "/enum-devices /class Display", ct);
 
-        return ParseDeviceInfo(output);
+        return ParseAllDeviceInfo(output);
     }
 
     public async Task EnableDeviceAsync(CancellationToken ct = default)
     {
-        var info = await GetDeviceInfoAsync(ct)
-            ?? throw new SetupException("Virtual Display Driver device not found. Is the driver installed?");
+        var devices = await GetAllDeviceInfoAsync(ct);
+        if (devices.Count == 0)
+            throw new SetupException("Virtual Display Driver device not found. Is the driver installed?");
 
-        if (info.IsEnabled)
+        foreach (var device in devices)
         {
-            _logger?.LogInformation("Device is already enabled.");
-            return;
+            if (device.IsEnabled) continue;
+
+            _logger?.LogInformation("Enabling device {InstanceId}", device.InstanceId);
+            var exitCode = await _processRunner.RunElevatedAsync(
+                "pnputil.exe", $"/enable-device \"{device.InstanceId}\"", ct);
+
+            if (exitCode != 0)
+                throw new SetupException($"Failed to enable device {device.InstanceId}. pnputil exit code: {exitCode}", exitCode);
         }
 
-        _logger?.LogInformation("Enabling device {InstanceId}", info.InstanceId);
-
-        var exitCode = await _processRunner.RunElevatedAsync(
-            "pnputil.exe", $"/enable-device \"{info.InstanceId}\"", ct);
-
-        if (exitCode != 0)
-            throw new SetupException($"Failed to enable device. pnputil exit code: {exitCode}", exitCode);
-
-        _logger?.LogInformation("Device enabled successfully.");
+        _logger?.LogInformation("All devices enabled successfully.");
     }
 
     public async Task DisableDeviceAsync(CancellationToken ct = default)
     {
-        var info = await GetDeviceInfoAsync(ct)
-            ?? throw new SetupException("Virtual Display Driver device not found. Is the driver installed?");
+        var devices = await GetAllDeviceInfoAsync(ct);
+        if (devices.Count == 0)
+            throw new SetupException("Virtual Display Driver device not found. Is the driver installed?");
 
-        if (!info.IsEnabled)
+        foreach (var device in devices)
         {
-            _logger?.LogInformation("Device is already disabled.");
-            return;
+            if (!device.IsEnabled && !device.HasError) continue;
+
+            _logger?.LogInformation("Disabling device {InstanceId}", device.InstanceId);
+            var exitCode = await _processRunner.RunElevatedAsync(
+                "pnputil.exe", $"/disable-device \"{device.InstanceId}\"", ct);
+
+            if (exitCode != 0)
+                throw new SetupException($"Failed to disable device {device.InstanceId}. pnputil exit code: {exitCode}", exitCode);
         }
 
-        _logger?.LogInformation("Disabling device {InstanceId}", info.InstanceId);
-
-        var exitCode = await _processRunner.RunElevatedAsync(
-            "pnputil.exe", $"/disable-device \"{info.InstanceId}\"", ct);
-
-        if (exitCode != 0)
-            throw new SetupException($"Failed to disable device. pnputil exit code: {exitCode}", exitCode);
-
-        _logger?.LogInformation("Device disabled successfully.");
+        _logger?.LogInformation("All devices disabled successfully.");
     }
 
     public async Task RestartDeviceAsync(CancellationToken ct = default)
     {
-        var info = await GetDeviceInfoAsync(ct)
-            ?? throw new SetupException("Virtual Display Driver device not found. Is the driver installed?");
+        var devices = await GetAllDeviceInfoAsync(ct);
+        if (devices.Count == 0)
+            throw new SetupException("Virtual Display Driver device not found. Is the driver installed?");
 
-        _logger?.LogInformation("Restarting device {InstanceId}", info.InstanceId);
+        foreach (var device in devices)
+        {
+            _logger?.LogInformation("Restarting device {InstanceId}", device.InstanceId);
+            var exitCode = await _processRunner.RunElevatedAsync(
+                "pnputil.exe", $"/restart-device \"{device.InstanceId}\"", ct);
 
-        var exitCode = await _processRunner.RunElevatedAsync(
-            "pnputil.exe", $"/restart-device \"{info.InstanceId}\"", ct);
+            if (exitCode != 0)
+                throw new SetupException($"Failed to restart device {device.InstanceId}. pnputil exit code: {exitCode}", exitCode);
+        }
 
-        if (exitCode != 0)
-            throw new SetupException($"Failed to restart device. pnputil exit code: {exitCode}", exitCode);
-
-        _logger?.LogInformation("Device restarted successfully.");
+        _logger?.LogInformation("All devices restarted successfully.");
     }
 
     // --- Private helpers ---
@@ -249,15 +294,16 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
     }
 
     internal static DeviceInfo? ParseDeviceInfo(string pnpUtilOutput)
+        => ParseAllDeviceInfo(pnpUtilOutput).FirstOrDefault();
+
+    internal static IReadOnlyList<DeviceInfo> ParseAllDeviceInfo(string pnpUtilOutput)
     {
+        var results = new List<DeviceInfo>();
+
         if (string.IsNullOrWhiteSpace(pnpUtilOutput))
-            return null;
+            return results;
 
         // pnputil /enum-devices output is block-based, separated by blank lines.
-        // Each block has key-value pairs like:
-        //   Instance ID:        ROOT\DISPLAY\0000
-        //   Device Description: Virtual Display
-        //   Status:             Started
         var blocks = pnpUtilOutput.Split(
             ["\r\n\r\n", "\n\n"],
             StringSplitOptions.RemoveEmptyEntries);
@@ -277,7 +323,6 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
                 values[key] = value;
             }
 
-            // Match on manufacturer or driver name to identify VDD
             var isVdd = (values.TryGetValue("Device Description", out var desc) &&
                          desc.Contains("Virtual Display", StringComparison.OrdinalIgnoreCase)) ||
                         (values.TryGetValue("Manufacturer Name", out var mfr) &&
@@ -299,17 +344,16 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
             int? problemCode = null;
             if (hasError && values.TryGetValue("Problem Code", out var problemStr))
             {
-                // Problem Code format: "43 (0x2B) [CM_PROB_FAILED_POST_START]"
                 var spaceIndex = problemStr.IndexOf(' ');
                 var codeStr = spaceIndex > 0 ? problemStr[..spaceIndex] : problemStr;
                 if (int.TryParse(codeStr, out var code))
                     problemCode = code;
             }
 
-            return new DeviceInfo(instanceId, description, isEnabled, hasError, problemCode);
+            results.Add(new DeviceInfo(instanceId, description, isEnabled, hasError, problemCode));
         }
 
-        return null;
+        return results;
     }
 
     private async Task<string?> FindOemInfNameAsync(CancellationToken ct)
@@ -356,4 +400,145 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
 
         return null;
     }
+
+    /// <summary>
+    /// Creates a root-enumerated device node using SetupDI APIs via an elevated PowerShell process.
+    /// This is equivalent to what <c>devcon install</c> does: it creates the device node so that
+    /// Windows PnP can match it to the driver already in the store.
+    /// </summary>
+    private async Task CreateDeviceNodeAsync(string infPath, CancellationToken ct)
+    {
+        var scriptPath = Path.Combine(Path.GetTempPath(), $"vdd-create-device-{Guid.NewGuid():N}.ps1");
+        var outputPath = Path.Combine(Path.GetTempPath(), $"vdd-create-device-{Guid.NewGuid():N}.log");
+
+        try
+        {
+            // Write the PowerShell script that P/Invokes SetupDI to create the device node,
+            // then calls UpdateDriverForPlugAndPlayDevices to install the driver on it.
+            var script = CreateDeviceNodeScript
+                .Replace("{{INF_PATH}}", infPath.Replace(@"\", @"\\"))
+                .Replace("{{OUTPUT_PATH}}", outputPath.Replace(@"\", @"\\"));
+
+            await File.WriteAllTextAsync(scriptPath, script, ct);
+
+            var exitCode = await _processRunner.RunElevatedAsync(
+                "powershell.exe",
+                $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\"",
+                ct);
+
+            string? output = null;
+            if (File.Exists(outputPath))
+                output = (await File.ReadAllTextAsync(outputPath, ct)).Trim();
+
+            _logger?.LogInformation("Device node creation result: exit={ExitCode} output={Output}", exitCode, output);
+
+            if (exitCode != 0 || output?.StartsWith("SUCCESS", StringComparison.OrdinalIgnoreCase) != true)
+                throw new SetupException($"Failed to create virtual display device.{(output != null ? $" {output}" : "")}");
+        }
+        finally
+        {
+            try { if (File.Exists(scriptPath)) File.Delete(scriptPath); } catch { }
+            try { if (File.Exists(outputPath)) File.Delete(outputPath); } catch { }
+        }
+    }
+
+    // PowerShell script that creates a root-enumerated device node via SetupDI P/Invoke.
+    // Placeholders: {{INF_PATH}}, {{OUTPUT_PATH}}
+    private const string CreateDeviceNodeScript = """
+        $code = @"
+        using System;
+        using System.Runtime.InteropServices;
+
+        public class VddDeviceCreator
+        {
+            [StructLayout(LayoutKind.Sequential)]
+            public struct SP_DEVINFO_DATA
+            {
+                public int cbSize;
+                public Guid ClassGuid;
+                public int DevInst;
+                public IntPtr Reserved;
+            }
+
+            [DllImport("setupapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            static extern IntPtr SetupDiCreateDeviceInfoList(ref Guid ClassGuid, IntPtr hwndParent);
+
+            [DllImport("setupapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            static extern bool SetupDiCreateDeviceInfoW(
+                IntPtr DeviceInfoSet, string DeviceName, ref Guid ClassGuid,
+                string DeviceDescription, IntPtr hwndParent, uint CreationFlags,
+                ref SP_DEVINFO_DATA DeviceInfoData);
+
+            [DllImport("setupapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            static extern bool SetupDiSetDeviceRegistryPropertyW(
+                IntPtr DeviceInfoSet, ref SP_DEVINFO_DATA DeviceInfoData,
+                uint Property, byte[] PropertyBuffer, uint PropertyBufferSize);
+
+            [DllImport("setupapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            static extern bool SetupDiCallClassInstaller(
+                uint InstallFunction, IntPtr DeviceInfoSet, ref SP_DEVINFO_DATA DeviceInfoData);
+
+            [DllImport("setupapi.dll", SetLastError = true)]
+            static extern bool SetupDiDestroyDeviceInfoList(IntPtr DeviceInfoSet);
+
+            [DllImport("newdev.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            static extern bool UpdateDriverForPlugAndPlayDevicesW(
+                IntPtr hwndParent, string HardwareId, string FullInfPath,
+                uint InstallFlags, out bool bRebootRequired);
+
+            const uint DICD_GENERATE_ID = 1;
+            const uint SPDRP_HARDWAREID = 1;
+            const uint DIF_REGISTERDEVICE = 0x19;
+
+            public static string CreateAndInstall(string hardwareId, string infPath)
+            {
+                Guid classGuid = new Guid("4D36E968-E325-11CE-BFC1-08002BE10318");
+                IntPtr devInfoSet = SetupDiCreateDeviceInfoList(ref classGuid, IntPtr.Zero);
+                if (devInfoSet == (IntPtr)(-1))
+                    return "FAILED: SetupDiCreateDeviceInfoList error " + Marshal.GetLastWin32Error();
+
+                try
+                {
+                    SP_DEVINFO_DATA devInfoData = new SP_DEVINFO_DATA();
+                    devInfoData.cbSize = Marshal.SizeOf(devInfoData);
+
+                    if (!SetupDiCreateDeviceInfoW(devInfoSet, "Display", ref classGuid,
+                        null, IntPtr.Zero, DICD_GENERATE_ID, ref devInfoData))
+                        return "FAILED: SetupDiCreateDeviceInfo error " + Marshal.GetLastWin32Error();
+
+                    byte[] hwIdBytes = System.Text.Encoding.Unicode.GetBytes(hardwareId + "\0\0");
+                    if (!SetupDiSetDeviceRegistryPropertyW(devInfoSet, ref devInfoData,
+                        SPDRP_HARDWAREID, hwIdBytes, (uint)hwIdBytes.Length))
+                        return "FAILED: SetupDiSetDeviceRegistryProperty error " + Marshal.GetLastWin32Error();
+
+                    if (!SetupDiCallClassInstaller(DIF_REGISTERDEVICE, devInfoSet, ref devInfoData))
+                        return "FAILED: SetupDiCallClassInstaller error " + Marshal.GetLastWin32Error();
+
+                    bool rebootRequired;
+                    if (!UpdateDriverForPlugAndPlayDevicesW(IntPtr.Zero, hardwareId, infPath, 0, out rebootRequired))
+                    {
+                        int err = Marshal.GetLastWin32Error();
+                        return "FAILED: UpdateDriverForPlugAndPlayDevices error " + err;
+                    }
+
+                    return rebootRequired ? "SUCCESS_REBOOT" : "SUCCESS";
+                }
+                finally
+                {
+                    SetupDiDestroyDeviceInfoList(devInfoSet);
+                }
+            }
+        }
+        "@
+
+        try {
+            Add-Type -TypeDefinition $code
+            $result = [VddDeviceCreator]::CreateAndInstall("Root\MttVDD", "{{INF_PATH}}")
+            $result | Out-File -FilePath "{{OUTPUT_PATH}}" -Encoding UTF8
+            if ($result.StartsWith("FAILED")) { exit 1 }
+        } catch {
+            "ERROR: $($_.Exception.Message)" | Out-File -FilePath "{{OUTPUT_PATH}}" -Encoding UTF8
+            exit 1
+        }
+        """;
 }

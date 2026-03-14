@@ -184,7 +184,13 @@
             <!-- Actions -->
             <StackPanel Orientation="Horizontal">
                 <Button AutomationProperties.AutomationId="RefreshStatusButton" Content="Refresh" Command="{Binding RefreshStatusCommand}" Margin="0,0,8,0" />
-                <Button AutomationProperties.AutomationId="PingButton" Content="Ping Driver" Command="{Binding PingCommand}" Style="{StaticResource SecondaryButton}" />
+                <Button AutomationProperties.AutomationId="PingButton" Content="Ping Driver" Command="{Binding PingCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="RestartDriverButton" Content="Restart Device"
+                        Command="{Binding RestartDeviceCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="DisableDriverButton" Content="Disable Driver"
+                        Command="{Binding DisableDriverCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="UninstallDriverButton" Content="Uninstall Driver"
+                        Command="{Binding UninstallDriverCommand}" Style="{StaticResource SecondaryButton}" />
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

@@ -26,7 +26,12 @@ public partial class App : Application
         });
 
         // Logging
-        services.AddLogging(builder => builder.AddDebug());
+        services.AddLogging(builder =>
+        {
+            builder.AddDebug();
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Debug);
+        });
 
         // App services
         services.AddSingleton<IActivityLogger, ActivityLogger>();

@@ -11,6 +11,7 @@ public interface IVirtualDisplaySetup
 
     Task<DeviceState> GetDeviceStateAsync(CancellationToken ct = default);
     Task<DeviceInfo?> GetDeviceInfoAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<DeviceInfo>> GetAllDeviceInfoAsync(CancellationToken ct = default);
 
     Task EnableDeviceAsync(CancellationToken ct = default);
     Task DisableDeviceAsync(CancellationToken ct = default);

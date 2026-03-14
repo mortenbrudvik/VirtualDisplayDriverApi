@@ -63,7 +63,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Slider Grid.Column="0"
-                                Minimum="0" Maximum="10"
+                                Minimum="1" Maximum="10"
                                 IsSnapToTickEnabled="True" TickFrequency="1"
                                 Value="{Binding TargetDisplayCount}"
                                 VerticalAlignment="Center"

@@ -50,11 +50,18 @@ public partial class StatusViewModel : ObservableObject
             PingResult = await _manager.PingAsync();
             IsConnected = _manager.IsConnected;
 
-            // Sync display count from driver's persisted XML config (source of truth).
-            // Unlike EnumDisplayDevices, the XML is written synchronously before reload — no timing issues.
-            var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
-            if (configuredCount != _manager.DisplayCount)
-                _manager.SyncDisplayCount(configuredCount);
+            // Sync display count from XML only when driver is actually running.
+            // When disabled/stopped, don't override — the count should be 0.
+            if (IsPipeRunning)
+            {
+                var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
+                if (configuredCount != _manager.DisplayCount)
+                    _manager.SyncDisplayCount(configuredCount);
+            }
+            else if (!IsPipeRunning && IsDriverInstalled)
+            {
+                _manager.SyncDisplayCount(0);
+            }
 
             DisplayCount = _manager.DisplayCount;
 
@@ -74,21 +81,136 @@ public partial class StatusViewModel : ObservableObject
         finally
         {
             // Check device state to determine which banner to show
-            var deviceHasError = false;
+            var deviceState = DeviceState.NotFound;
             if (IsDriverInstalled && !IsPipeRunning)
             {
                 try
                 {
-                    var state = await _setup.GetDeviceStateAsync();
-                    deviceHasError = state == DeviceState.Error;
+                    deviceState = await _setup.GetDeviceStateAsync();
                 }
-                catch { /* ignore — will show enable banner as fallback */ }
+                catch { /* ignore */ }
             }
 
-            ShowInstallBanner = !IsDriverInstalled;
-            ShowReinstallBanner = IsDriverInstalled && deviceHasError;
-            ShowEnableBanner = IsDriverInstalled && !IsPipeRunning && !deviceHasError;
+            // NotFound = driver files may exist but not registered with Windows (needs install)
+            var needsInstall = !IsDriverInstalled || (!IsPipeRunning && deviceState == DeviceState.NotFound);
+            ShowInstallBanner = needsInstall;
+            ShowReinstallBanner = !needsInstall && deviceState == DeviceState.Error;
+            ShowEnableBanner = !needsInstall && !IsPipeRunning && deviceState != DeviceState.Error;
             IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RestartDeviceAsync()
+    {
+        IsSetupInProgress = true;
+        ErrorMessage = null;
+        _logger.LogInfo("Setup", "Restarting device...");
+
+        try
+        {
+            SetupProgressMessage = "Restarting device...";
+            await _setup.RestartDeviceAsync();
+            _logger.LogSuccess("Setup", "Device restarted.");
+
+            _logger.LogInfo("Setup", "Waiting for driver pipe to start...");
+            SetupProgressMessage = "Waiting for driver to initialize...";
+
+            var pipeReady = false;
+            for (var i = 0; i < 20; i++)
+            {
+                await Task.Delay(500);
+                if (VirtualDisplayDetection.IsPipeRunning())
+                {
+                    pipeReady = true;
+                    break;
+                }
+            }
+
+            if (pipeReady)
+                _logger.LogSuccess("Setup", "Driver pipe is running.");
+            else
+                _logger.LogWarning("Setup", "Driver pipe did not start within 10 seconds.");
+        }
+        catch (SetupException ex)
+        {
+            ErrorMessage = ex.Message;
+            _logger.LogError("Setup", $"Restart failed: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unexpected error: {ex.Message}";
+            _logger.LogError("Setup", $"Restart failed unexpectedly: {ex.Message}");
+        }
+        finally
+        {
+            IsSetupInProgress = false;
+            SetupProgressMessage = null;
+            await RefreshStatusAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task DisableDriverAsync()
+    {
+        IsSetupInProgress = true;
+        ErrorMessage = null;
+        _logger.LogInfo("Setup", "Disabling all virtual display devices...");
+
+        try
+        {
+            SetupProgressMessage = "Disabling devices...";
+            await _setup.DisableDeviceAsync();
+            _manager.SyncDisplayCount(0);
+            _logger.LogSuccess("Setup", "All virtual display devices disabled. 0 virtual displays active.");
+        }
+        catch (SetupException ex)
+        {
+            ErrorMessage = ex.Message;
+            _logger.LogError("Setup", $"Disable failed: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unexpected error: {ex.Message}";
+            _logger.LogError("Setup", $"Disable failed unexpectedly: {ex.Message}");
+        }
+        finally
+        {
+            IsSetupInProgress = false;
+            SetupProgressMessage = null;
+            await RefreshStatusAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task UninstallDriverAsync()
+    {
+        IsSetupInProgress = true;
+        ErrorMessage = null;
+        _logger.LogInfo("Setup", "Uninstalling driver...");
+
+        try
+        {
+            SetupProgressMessage = "Uninstalling driver...";
+            await _setup.UninstallDriverAsync();
+            _manager.SyncDisplayCount(0);
+            _logger.LogSuccess("Setup", "Driver uninstalled. A system restart may be needed to fully remove all devices.");
+        }
+        catch (SetupException ex)
+        {
+            ErrorMessage = ex.Message;
+            _logger.LogError("Setup", $"Uninstall failed: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unexpected error: {ex.Message}";
+            _logger.LogError("Setup", $"Uninstall failed unexpectedly: {ex.Message}");
+        }
+        finally
+        {
+            IsSetupInProgress = false;
+            SetupProgressMessage = null;
+            await RefreshStatusAsync();
         }
     }
 
@@ -132,11 +254,36 @@ public partial class StatusViewModel : ObservableObject
 
             await _setup.InstallDriverAsync(progress: progress);
             _logger.LogSuccess("Setup", "Driver installed successfully.");
+
+            // Wait for the pipe server to start (driver needs time to initialize)
+            _logger.LogInfo("Setup", "Waiting for driver pipe to start...");
+            SetupProgressMessage = "Waiting for driver to initialize...";
+
+            var pipeReady = false;
+            for (var i = 0; i < 20; i++)
+            {
+                await Task.Delay(500);
+                if (VirtualDisplayDetection.IsPipeRunning())
+                {
+                    pipeReady = true;
+                    break;
+                }
+            }
+
+            if (pipeReady)
+                _logger.LogSuccess("Setup", "Driver pipe is running.");
+            else
+                _logger.LogWarning("Setup", "Driver pipe did not start within 10 seconds. The driver may need more time or a system restart.");
         }
         catch (SetupException ex)
         {
             ErrorMessage = ex.Message;
             _logger.LogError("Setup", $"Installation failed: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unexpected error: {ex.Message}";
+            _logger.LogError("Setup", $"Installation failed unexpectedly: {ex.Message}");
         }
         finally
         {
@@ -189,24 +336,18 @@ public partial class StatusViewModel : ObservableObject
 
             if (pipeReady)
             {
-                // Force the driver to create displays matching the XML config
-                var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
-                if (configuredCount > 0)
-                {
-                    await _manager.SetDisplayCountAsync(configuredCount);
-                    _logger.LogSuccess("Setup", $"Driver pipe is running. Set display count to {configuredCount}.");
-                }
-                else
-                {
-                    _manager.SyncDisplayCount(0);
-                    _logger.LogSuccess("Setup", "Driver pipe is running. No displays configured.");
-                }
+                _logger.LogSuccess("Setup", "Driver pipe is running.");
             }
         }
         catch (SetupException ex)
         {
             ErrorMessage = ex.Message;
             _logger.LogError("Setup", $"Reinstall failed: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unexpected error: {ex.Message}";
+            _logger.LogError("Setup", $"Reinstall failed unexpectedly: {ex.Message}");
         }
         finally
         {
@@ -258,18 +399,7 @@ public partial class StatusViewModel : ObservableObject
 
             if (pipeReady)
             {
-                // Force the driver to create displays matching the XML config
-                var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
-                if (configuredCount > 0)
-                {
-                    await _manager.SetDisplayCountAsync(configuredCount);
-                    _logger.LogSuccess("Setup", $"Driver pipe is running. Set display count to {configuredCount}.");
-                }
-                else
-                {
-                    _manager.SyncDisplayCount(0);
-                    _logger.LogSuccess("Setup", "Driver pipe is running. No displays configured.");
-                }
+                _logger.LogSuccess("Setup", "Driver pipe is running.");
             }
             else
             {
@@ -280,6 +410,11 @@ public partial class StatusViewModel : ObservableObject
         {
             ErrorMessage = ex.Message;
             _logger.LogError("Setup", $"Enable/restart failed: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unexpected error: {ex.Message}";
+            _logger.LogError("Setup", $"Enable/restart failed unexpectedly: {ex.Message}");
         }
         finally
         {
