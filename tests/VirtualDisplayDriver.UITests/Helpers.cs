@@ -69,6 +69,9 @@ public static class Helpers
     /// </summary>
     public static void NavigateTo(this Window window, string pageName)
     {
+        window.SetForeground();
+        Thread.Sleep(200);
+
         var navList = window.FindById("NavListBox");
         var items = navList.FindAllChildren();
 
@@ -106,6 +109,60 @@ public static class Helpers
         capture.Dispose();
 
         return path;
+    }
+
+    /// <summary>
+    /// Read the current display count from the display management page.
+    /// Assumes the Displays page is already active.
+    /// </summary>
+    public static int GetDisplayCount(this Window window)
+    {
+        var countElement = window.FindById("CurrentDisplayCount");
+        return int.Parse(countElement.Name);
+    }
+
+    /// <summary>
+    /// Wait for the display count to reach the expected value.
+    /// </summary>
+    public static bool WaitForDisplayCount(this Window window, int expected, TimeSpan? timeout = null)
+    {
+        var ts = timeout ?? TimeSpan.FromSeconds(35);
+        var result = Retry.WhileFalse(
+            () =>
+            {
+                var el = window.TryFindById("CurrentDisplayCount", TimeSpan.FromSeconds(1));
+                return el is not null && int.TryParse(el.Name, out var count) && count == expected;
+            },
+            ts,
+            TimeSpan.FromMilliseconds(500));
+
+        return result.Result;
+    }
+
+    /// <summary>
+    /// Wait for the display count to change from a given value.
+    /// Returns the new count.
+    /// </summary>
+    public static int WaitForDisplayCountChange(this Window window, int fromCount, TimeSpan? timeout = null)
+    {
+        var ts = timeout ?? TimeSpan.FromSeconds(35);
+        var newCount = fromCount;
+
+        Retry.WhileFalse(
+            () =>
+            {
+                var el = window.TryFindById("CurrentDisplayCount", TimeSpan.FromSeconds(1));
+                if (el is not null && int.TryParse(el.Name, out var count) && count != fromCount)
+                {
+                    newCount = count;
+                    return true;
+                }
+                return false;
+            },
+            ts,
+            TimeSpan.FromMilliseconds(500));
+
+        return newCount;
     }
 
     public class ElementNotFoundException : Exception

@@ -49,11 +49,11 @@ public class DashboardTests : IClassFixture<AppFixture>
     [Fact]
     public void MainWindow_ShouldShow_StatusBar()
     {
-        // Status bar should show pipe and driver status text
-        var pipeText = Window.TryFindById("StatusBarPipe")
-                       ?? Window.FindByText("Pipe: Running", TimeSpan.FromSeconds(2))
-                       ?? Window.FindByText("Pipe: Stopped", TimeSpan.FromSeconds(1));
-        pipeText.Should().NotBeNull("status bar should show pipe status");
+        // Status bar should show pipe status text (running or stopped)
+        var pipeRunning = Window.FindFirstDescendant(cf => cf.ByText("Pipe: Running"));
+        var pipeStopped = Window.FindFirstDescendant(cf => cf.ByText("Pipe: Stopped"));
+        (pipeRunning is not null || pipeStopped is not null)
+            .Should().BeTrue("status bar should show pipe status");
     }
 
     // ──────────────────────────────────────────────
@@ -480,15 +480,10 @@ public class DashboardTests : IClassFixture<AppFixture>
     [Fact]
     public void Sidebar_ShouldShow_PipeStatus()
     {
-        // The sidebar should display pipe status text
-        var found = Window.TryFindById("SidebarPipeStatus");
-        if (found is null)
-        {
-            // Fall back to searching by text content
-            var pipeText = Window.FindByText("Pipe: Running", TimeSpan.FromSeconds(1))
-                           ?? Window.FindByText("Pipe: Stopped", TimeSpan.FromSeconds(1));
-            pipeText.Should().NotBeNull("sidebar should show pipe running status");
-        }
+        var pipeRunning = Window.FindFirstDescendant(cf => cf.ByText("Pipe: Running"));
+        var pipeStopped = Window.FindFirstDescendant(cf => cf.ByText("Pipe: Stopped"));
+        (pipeRunning is not null || pipeStopped is not null)
+            .Should().BeTrue("sidebar should show pipe status");
     }
 
     [Fact]

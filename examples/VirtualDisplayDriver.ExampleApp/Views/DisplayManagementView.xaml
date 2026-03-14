@@ -21,9 +21,11 @@
                          Margin="0,0,0,12" />
 
             <!-- Error -->
-            <Border Background="#33F38BA8" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
+            <Border AutomationProperties.AutomationId="DisplayErrorBorder"
+                    Background="#33F38BA8" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
                     Visibility="{Binding ErrorMessage, Converter={StaticResource NullToCollapsed}, FallbackValue=Collapsed}">
-                <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentError}" TextWrapping="Wrap" />
+                <TextBlock AutomationProperties.AutomationId="DisplayErrorText"
+                           Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentError}" TextWrapping="Wrap" />
             </Border>
 
             <!-- Current Count Display -->
