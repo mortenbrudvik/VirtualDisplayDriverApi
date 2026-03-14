@@ -35,19 +35,19 @@
                 </DockPanel>
             </Border>
 
-            <!-- Enable Banner -->
+            <!-- Enable/Restart Banner -->
             <Border AutomationProperties.AutomationId="EnableBanner"
                     Background="#33F9E2AF" CornerRadius="6" Padding="16,12" Margin="0,0,0,12"
                     Visibility="{Binding ShowEnableBanner, Converter={StaticResource BoolToVis}}">
                 <DockPanel>
                     <Button AutomationProperties.AutomationId="EnableDriverButton"
-                            DockPanel.Dock="Right" Content="Enable Driver"
+                            DockPanel.Dock="Right" Content="Start Driver"
                             Command="{Binding EnableDriverCommand}"
                             IsEnabled="{Binding IsSetupInProgress, Converter={StaticResource InverseBool}}"
                             Margin="12,0,0,0" VerticalAlignment="Center" />
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Driver Not Running" FontWeight="SemiBold" FontSize="14" />
-                        <TextBlock Text="The driver is installed but the device appears to be disabled."
+                        <TextBlock Text="The driver is installed but not responding. Click to enable or restart."
                                    Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0" />
                     </StackPanel>
                 </DockPanel>

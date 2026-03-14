@@ -130,21 +130,55 @@ public partial class StatusViewModel : ObservableObject
     {
         IsSetupInProgress = true;
         ErrorMessage = null;
-        _logger.LogInfo("Setup", "Enabling virtual display device...");
 
         try
         {
-            await _setup.EnableDeviceAsync();
-            _logger.LogSuccess("Setup", "Device enabled successfully.");
+            var state = await _setup.GetDeviceStateAsync();
+
+            if (state == DeviceState.Disabled)
+            {
+                _logger.LogInfo("Setup", "Enabling virtual display device...");
+                await _setup.EnableDeviceAsync();
+                _logger.LogSuccess("Setup", "Device enabled.");
+            }
+            else
+            {
+                // Device is enabled or has an error — restart to recover
+                var reason = state == DeviceState.Error ? "has an error" : "is enabled but pipe is not running";
+                _logger.LogInfo("Setup", $"Device {reason}. Restarting device...");
+                await _setup.RestartDeviceAsync();
+                _logger.LogSuccess("Setup", "Device restarted.");
+            }
+
+            // Wait for the pipe server to start (driver needs time to initialize)
+            _logger.LogInfo("Setup", "Waiting for driver pipe to start...");
+            SetupProgressMessage = "Waiting for driver to initialize...";
+
+            var pipeReady = false;
+            for (var i = 0; i < 20; i++)
+            {
+                await Task.Delay(500);
+                if (VirtualDisplayDetection.IsPipeRunning())
+                {
+                    pipeReady = true;
+                    break;
+                }
+            }
+
+            if (pipeReady)
+                _logger.LogSuccess("Setup", "Driver pipe is running.");
+            else
+                _logger.LogWarning("Setup", "Driver pipe did not start within 10 seconds. The driver may need more time or a system restart.");
         }
         catch (SetupException ex)
         {
             ErrorMessage = ex.Message;
-            _logger.LogError("Setup", $"Enable failed: {ex.Message}");
+            _logger.LogError("Setup", $"Enable/restart failed: {ex.Message}");
         }
         finally
         {
             IsSetupInProgress = false;
+            SetupProgressMessage = null;
             await RefreshStatusAsync();
         }
     }

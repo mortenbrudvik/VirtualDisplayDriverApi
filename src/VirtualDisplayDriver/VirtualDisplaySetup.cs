@@ -103,6 +103,7 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
     {
         var info = await GetDeviceInfoAsync(ct);
         if (info is null) return DeviceState.NotFound;
+        if (info.HasError) return DeviceState.Error;
         return info.IsEnabled ? DeviceState.Enabled : DeviceState.Disabled;
     }
 
@@ -160,10 +161,17 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
 
     public async Task RestartDeviceAsync(CancellationToken ct = default)
     {
-        _logger?.LogInformation("Restarting device...");
-        await DisableDeviceAsync(ct);
-        await Task.Delay(500, ct);
-        await EnableDeviceAsync(ct);
+        var info = await GetDeviceInfoAsync(ct)
+            ?? throw new SetupException("Virtual Display Driver device not found. Is the driver installed?");
+
+        _logger?.LogInformation("Restarting device {InstanceId}", info.InstanceId);
+
+        var exitCode = await _processRunner.RunElevatedAsync(
+            "pnputil.exe", $"/restart-device \"{info.InstanceId}\"", ct);
+
+        if (exitCode != 0)
+            throw new SetupException($"Failed to restart device. pnputil exit code: {exitCode}", exitCode);
+
         _logger?.LogInformation("Device restarted successfully.");
     }
 
@@ -283,10 +291,22 @@ public class VirtualDisplaySetup : IVirtualDisplaySetup
                 continue;
 
             var description = desc ?? "Virtual Display Driver";
-            var isEnabled = values.TryGetValue("Status", out var status) &&
-                            status.Contains("Started", StringComparison.OrdinalIgnoreCase);
+            values.TryGetValue("Status", out var status);
 
-            return new DeviceInfo(instanceId, description, isEnabled);
+            var isEnabled = status?.Contains("Started", StringComparison.OrdinalIgnoreCase) == true;
+            var hasError = status?.Contains("Problem", StringComparison.OrdinalIgnoreCase) == true;
+
+            int? problemCode = null;
+            if (hasError && values.TryGetValue("Problem Code", out var problemStr))
+            {
+                // Problem Code format: "43 (0x2B) [CM_PROB_FAILED_POST_START]"
+                var spaceIndex = problemStr.IndexOf(' ');
+                var codeStr = spaceIndex > 0 ? problemStr[..spaceIndex] : problemStr;
+                if (int.TryParse(codeStr, out var code))
+                    problemCode = code;
+            }
+
+            return new DeviceInfo(instanceId, description, isEnabled, hasError, problemCode);
         }
 
         return null;

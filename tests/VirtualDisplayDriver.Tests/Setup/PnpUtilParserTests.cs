@@ -173,4 +173,60 @@ public class PnpUtilParserTests
     {
         VirtualDisplaySetup.ParseOemInfName("").Should().BeNull();
     }
+
+    [Fact]
+    public void ParseDeviceInfo_ProblemDevice_ReturnsErrorState()
+    {
+        // Real output from a machine where VDD has Problem Code 43
+        var output = """
+            Microsoft PnP Utility
+
+            Instance ID:                ROOT\DISPLAY\0000
+            Device Description:         Virtual Display Driver
+            Class Name:                 Display
+            Class GUID:                 {4d36e968-e325-11ce-bfc1-08002be10318}
+            Manufacturer Name:          MikeTheTech
+            Status:                     Problem
+            Problem Code:               43 (0x2B) [CM_PROB_FAILED_POST_START]
+            Driver Name:                oem117.inf
+
+            Instance ID:                PCI\VEN_10DE&DEV_2204&SUBSYS_88D5103C&REV_A1\4&16e2ac9c&0&0008
+            Device Description:         NVIDIA GeForce RTX 3090
+            Class Name:                 Display
+            Class GUID:                 {4d36e968-e325-11ce-bfc1-08002be10318}
+            Manufacturer Name:          NVIDIA
+            Status:                     Started
+            Driver Name:                oem110.inf
+            """;
+
+        var result = VirtualDisplaySetup.ParseDeviceInfo(output);
+
+        result.Should().NotBeNull();
+        result!.InstanceId.Should().Be(@"ROOT\DISPLAY\0000");
+        result.Description.Should().Be("Virtual Display Driver");
+        // A device with Status: Problem is NOT enabled — it has an error
+        result.IsEnabled.Should().BeFalse();
+        result.HasError.Should().BeTrue();
+        result.ProblemCode.Should().Be(43);
+    }
+
+    [Fact]
+    public void ParseDeviceInfo_ProblemDevice_GetDeviceState_ReturnsError()
+    {
+        // When a device has a problem code, GetDeviceStateAsync should return Error, not Disabled
+        var output = """
+            Instance ID:                ROOT\DISPLAY\0000
+            Device Description:         Virtual Display Driver
+            Class Name:                 Display
+            Manufacturer Name:          MikeTheTech
+            Status:                     Problem
+            Problem Code:               43 (0x2B) [CM_PROB_FAILED_POST_START]
+            Driver Name:                oem117.inf
+            """;
+
+        var result = VirtualDisplaySetup.ParseDeviceInfo(output);
+
+        result.Should().NotBeNull();
+        result!.HasError.Should().BeTrue();
+    }
 }

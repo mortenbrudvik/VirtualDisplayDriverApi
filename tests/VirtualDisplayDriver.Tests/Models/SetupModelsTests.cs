@@ -49,6 +49,6 @@ public class SetupModelsTests
     public void DeviceState_HasExpectedValues()
     {
         Enum.GetNames<DeviceState>().Should().BeEquivalentTo(
-            "NotFound", "Enabled", "Disabled");
+            "NotFound", "Enabled", "Disabled", "Error");
     }
 }

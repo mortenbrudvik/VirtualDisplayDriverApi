@@ -138,6 +138,28 @@ public class VirtualDisplaySetupTests
         result.Should().Be(DeviceState.NotFound);
     }
 
+    // --- GetDeviceStateAsync with Problem device ---
+
+    [Fact]
+    public async Task GetDeviceStateAsync_ProblemDevice_ReturnsError()
+    {
+        var problemDeviceOutput = """
+            Instance ID:                ROOT\DISPLAY\0000
+            Device Description:         Virtual Display Driver
+            Class Name:                 Display
+            Manufacturer Name:          MikeTheTech
+            Status:                     Problem
+            Problem Code:               43 (0x2B) [CM_PROB_FAILED_POST_START]
+            Driver Name:                oem117.inf
+            """;
+
+        _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-devices /class Display", Arg.Any<CancellationToken>())
+            .Returns(problemDeviceOutput);
+
+        var result = await _setup.GetDeviceStateAsync();
+        result.Should().Be(DeviceState.Error);
+    }
+
     // --- EnableDeviceAsync ---
 
     [Fact]
@@ -225,18 +247,30 @@ public class VirtualDisplaySetupTests
     // --- RestartDeviceAsync ---
 
     [Fact]
-    public async Task RestartDeviceAsync_DisablesThenEnables()
+    public async Task RestartDeviceAsync_CallsPnpUtilRestartDevice()
     {
-        // First call (for disable) returns enabled, second call (for enable) returns disabled
         _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-devices /class Display", Arg.Any<CancellationToken>())
-            .Returns(EnabledDeviceOutput, DisabledDeviceOutput);
+            .Returns(EnabledDeviceOutput);
         _processRunner.RunElevatedAsync("pnputil.exe", Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(0);
 
         await _setup.RestartDeviceAsync();
 
-        await _processRunner.Received(2).RunElevatedAsync(
-            "pnputil.exe", Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _processRunner.Received(1).RunElevatedAsync(
+            "pnputil.exe",
+            Arg.Is<string>(s => s.Contains("/restart-device") && s.Contains(@"ROOT\DISPLAY\0000")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RestartDeviceAsync_DeviceNotFound_ThrowsSetupException()
+    {
+        _processRunner.RunAndCaptureOutputAsync("pnputil.exe", "/enum-devices /class Display", Arg.Any<CancellationToken>())
+            .Returns(NoVddDeviceOutput);
+
+        var act = () => _setup.RestartDeviceAsync();
+        await act.Should().ThrowAsync<SetupException>()
+            .WithMessage("*not found*");
     }
 
     // --- UninstallDriverAsync ---
