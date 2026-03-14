@@ -119,23 +119,48 @@ public class VirtualDisplayManagerTests
     }
 
     [Fact]
-    public async Task SyncDisplayCount_SetsCountWithoutPipeCommand()
+    public async Task SyncDisplayCountAsync_SetsCountWithoutPipeCommand()
     {
         await using var manager = CreateManager();
         manager.DisplayCount.Should().Be(0);
 
-        manager.SyncDisplayCount(3);
+        await manager.SyncDisplayCountAsync(3);
 
         manager.DisplayCount.Should().Be(3);
         await _mockClient.DidNotReceive().SetDisplayCountAsync(Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task SyncDisplayCount_ThrowsOnNegative()
+    public async Task SyncDisplayCountAsync_ThrowsOnNegative()
     {
         await using var manager = CreateManager();
 
-        var act = () => manager.SyncDisplayCount(-1);
-        act.Should().Throw<ArgumentOutOfRangeException>();
+        var act = () => manager.SyncDisplayCountAsync(-1);
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public async Task SyncDisplayCountAsync_WaitsForSemaphore()
+    {
+        await using var manager = CreateManager();
+        var tcs = new TaskCompletionSource<string>();
+
+        _mockClient.PingAsync(Arg.Any<CancellationToken>())
+            .Returns(async _ => await tcs.Task);
+
+        // Start a ping that holds the semaphore
+        var pingTask = manager.PingAsync();
+        await Task.Delay(50);
+
+        // SyncDisplayCountAsync should block until ping completes
+        var syncTask = manager.SyncDisplayCountAsync(5);
+        await Task.Delay(50);
+        syncTask.IsCompleted.Should().BeFalse("sync should wait for semaphore");
+
+        tcs.SetResult("PONG");
+        await pingTask;
+        await syncTask;
+
+        manager.DisplayCount.Should().Be(5);
     }
 }

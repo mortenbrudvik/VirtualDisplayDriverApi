@@ -6,7 +6,7 @@ using Xunit;
 namespace VirtualDisplayDriver.IntegrationTests;
 
 [Trait("Category", "Integration")]
-public class DisplayManagementIntegrationTests : IAsyncDisposable
+public class DisplayManagementIntegrationTests : IAsyncLifetime
 {
     private readonly VirtualDisplayManager _manager;
 
@@ -18,13 +18,16 @@ public class DisplayManagementIntegrationTests : IAsyncDisposable
         };
         var client = new VddPipeClient(options);
         _manager = new VirtualDisplayManager(client, options);
-
-        // Sync local count from driver's persisted config
-        var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
-        _manager.SyncDisplayCount(configuredCount);
     }
 
-    public async ValueTask DisposeAsync()
+    public async Task InitializeAsync()
+    {
+        // Sync local count from driver's persisted config
+        var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
+        await _manager.SyncDisplayCountAsync(configuredCount);
+    }
+
+    public async Task DisposeAsync()
     {
         try { await _manager.RemoveAllDisplaysAsync(); }
         catch { /* best-effort cleanup */ }

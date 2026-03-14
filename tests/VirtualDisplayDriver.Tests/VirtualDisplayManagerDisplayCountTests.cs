@@ -128,4 +128,37 @@ public class VirtualDisplayManagerDisplayCountTests
         await act.Should().ThrowAsync<PipeConnectionException>();
         manager.DisplayCount.Should().Be(3);
     }
+
+    [Fact]
+    public async Task SetDisplayCountAsync_ThrowsWhenExceedingMax()
+    {
+        var opts = new VirtualDisplayOptions { MaxDisplayCount = 4, ReloadSpacing = TimeSpan.Zero };
+        await using var manager = new VirtualDisplayManager(_mockClient, opts);
+
+        var act = () => manager.SetDisplayCountAsync(5);
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public async Task SetDisplayCountAsync_AllowsMaxValue()
+    {
+        var opts = new VirtualDisplayOptions { MaxDisplayCount = 4, ReloadSpacing = TimeSpan.Zero };
+        await using var manager = new VirtualDisplayManager(_mockClient, opts);
+
+        await manager.SetDisplayCountAsync(4);
+        manager.DisplayCount.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task AddDisplaysAsync_ThrowsWhenExceedingMax()
+    {
+        var opts = new VirtualDisplayOptions { MaxDisplayCount = 4, ReloadSpacing = TimeSpan.Zero };
+        await using var manager = new VirtualDisplayManager(_mockClient, opts);
+
+        await manager.SetDisplayCountAsync(3);
+
+        var act = () => manager.AddDisplaysAsync(2);
+        await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
+        manager.DisplayCount.Should().Be(3, "count should be unchanged after failed add");
+    }
 }

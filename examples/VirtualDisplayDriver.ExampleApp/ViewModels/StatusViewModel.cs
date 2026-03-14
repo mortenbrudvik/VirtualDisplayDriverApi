@@ -31,7 +31,19 @@ public partial class StatusViewModel : ObservableObject
         _manager = manager;
         _setup = setup;
         _logger = logger;
-        _ = RefreshStatusAsync();
+        _ = SafeRefreshAsync();
+    }
+
+    private async Task SafeRefreshAsync()
+    {
+        try
+        {
+            await RefreshStatusAsync();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger.LogError("Status", $"Initial status refresh failed: {ex.Message}");
+        }
     }
 
     [RelayCommand]
@@ -56,11 +68,11 @@ public partial class StatusViewModel : ObservableObject
             {
                 var configuredCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
                 if (configuredCount != _manager.DisplayCount)
-                    _manager.SyncDisplayCount(configuredCount);
+                    await _manager.SyncDisplayCountAsync(configuredCount);
             }
             else if (!IsPipeRunning && IsDriverInstalled)
             {
-                _manager.SyncDisplayCount(0);
+                await _manager.SyncDisplayCountAsync(0);
             }
 
             DisplayCount = _manager.DisplayCount;
@@ -73,7 +85,7 @@ public partial class StatusViewModel : ObservableObject
 
             _logger.LogSuccess("Status", $"Status refreshed — Pipe: {IsPipeRunning}, Connected: {IsConnected}, Displays: {DisplayCount}");
         }
-        catch (VddException ex)
+        catch (Exception ex) when (ex is VddException or ObjectDisposedException or OperationCanceledException)
         {
             ErrorMessage = ex.Message;
             _logger.LogError("Status", $"Status refresh failed: {ex.Message}");
@@ -161,7 +173,7 @@ public partial class StatusViewModel : ObservableObject
         {
             SetupProgressMessage = "Disabling devices...";
             await _setup.DisableDeviceAsync();
-            _manager.SyncDisplayCount(0);
+            await _manager.SyncDisplayCountAsync(0);
             _logger.LogSuccess("Setup", "All virtual display devices disabled. 0 virtual displays active.");
         }
         catch (SetupException ex)
@@ -193,7 +205,7 @@ public partial class StatusViewModel : ObservableObject
         {
             SetupProgressMessage = "Uninstalling driver...";
             await _setup.UninstallDriverAsync();
-            _manager.SyncDisplayCount(0);
+            await _manager.SyncDisplayCountAsync(0);
             _logger.LogSuccess("Setup", "Driver uninstalled. A system restart may be needed to fully remove all devices.");
         }
         catch (SetupException ex)

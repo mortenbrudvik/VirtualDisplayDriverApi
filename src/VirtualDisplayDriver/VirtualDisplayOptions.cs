@@ -7,4 +7,5 @@ public class VirtualDisplayOptions
     public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(10);
     public TimeSpan ReloadSpacing { get; set; } = TimeSpan.FromSeconds(30);
     public int InitialDisplayCount { get; set; }
+    public int MaxDisplayCount { get; set; } = 16;
 }

@@ -20,10 +20,19 @@ public partial class VirtualDisplayManager : IVirtualDisplayManager
     public bool IsConnected { get; private set; }
     public IVddPipeClient PipeClient => _client;
 
-    public void SyncDisplayCount(int count)
+    public async Task SyncDisplayCountAsync(int count, CancellationToken ct = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(count);
-        DisplayCount = count;
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        await _semaphore.WaitAsync(ct);
+        try
+        {
+            DisplayCount = count;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
     public VirtualDisplayManager(
@@ -61,6 +70,7 @@ public partial class VirtualDisplayManager : IVirtualDisplayManager
     public async Task SetDisplayCountAsync(int count, CancellationToken ct = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(count);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, _options.MaxDisplayCount);
         await ExecuteDisplayCountCommandAsync(count, ct);
     }
 
@@ -164,6 +174,7 @@ public partial class VirtualDisplayManager : IVirtualDisplayManager
         {
             await WaitForReloadSpacingAsync(ct);
             var newCount = computeCount(DisplayCount);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(newCount, _options.MaxDisplayCount, "computed display count");
             await _client.SetDisplayCountAsync(newCount, ct);
             _lastReloadCompleteTicks = Stopwatch.GetTimestamp();
             DisplayCount = newCount;

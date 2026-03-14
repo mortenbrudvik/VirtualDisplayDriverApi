@@ -8,7 +8,7 @@ public interface IVirtualDisplayManager : IAsyncDisposable
     bool IsConnected { get; }
     IVddPipeClient PipeClient { get; }
 
-    void SyncDisplayCount(int count);
+    Task SyncDisplayCountAsync(int count, CancellationToken ct = default);
 
     Task<bool> PingAsync(CancellationToken ct = default);
 

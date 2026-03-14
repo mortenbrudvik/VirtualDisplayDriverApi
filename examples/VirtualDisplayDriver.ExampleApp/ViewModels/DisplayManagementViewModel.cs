@@ -134,9 +134,17 @@ public partial class DisplayManagementViewModel : ObservableObject
             }
 
             if (pipeReady)
+            {
+                // Re-sync local count from XML to match the recovered driver's state.
+                var xmlCount = VirtualDisplayDetection.GetConfiguredDisplayCount();
+                await _manager.SyncDisplayCountAsync(xmlCount);
+                CurrentDisplayCount = _manager.DisplayCount;
                 _logger.LogSuccess("Display", "Driver recovered automatically.");
+            }
             else
+            {
                 _logger.LogWarning("Display", "Driver did not recover within 10 seconds. Try restarting manually.");
+            }
         }
         catch (SetupException ex)
         {

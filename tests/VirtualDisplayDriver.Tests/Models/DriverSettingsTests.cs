@@ -37,6 +37,7 @@ public class DriverSettingsTests
         opts.ConnectTimeout.Should().Be(TimeSpan.FromSeconds(10));
         opts.ReloadSpacing.Should().Be(TimeSpan.FromSeconds(30));
         opts.InitialDisplayCount.Should().Be(0);
+        opts.MaxDisplayCount.Should().Be(16);
     }
 
     [Fact]
