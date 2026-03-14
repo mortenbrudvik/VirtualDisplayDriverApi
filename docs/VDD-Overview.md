@@ -10,7 +10,7 @@
 
 ## 1. What Is It?
 
-Virtual Display Driver (VDD) is a **Windows Indirect Display Driver (IDD)** that creates virtual monitors without requiring physical hardware. It uses Microsoft's **IddCx 1.10** framework (the latest available) and runs as a **User-Mode Driver Framework (UMDF)** driver, which significantly reduces the risk of system crashes (BSODs) compared to kernel-mode alternatives.
+Virtual Display Driver (VDD) is a **Windows Indirect Display Driver (IDD)** that creates virtual monitors without requiring physical hardware. It targets Microsoft's **IddCx 1.10** framework on x64/ARM64 (with a minimum of IddCx 1.2 via the INF, and runtime feature detection for graceful degradation on older systems) and runs as a **User-Mode Driver Framework (UMDF)** driver, which significantly reduces the risk of system crashes (BSODs) compared to kernel-mode alternatives.
 
 The project originated as a fork of `roshkins/IddSampleDriver` in October 2023 and has since become the most feature-rich and actively maintained IDD implementation available.
 
@@ -21,13 +21,13 @@ The project originated as a fork of `roshkins/IddSampleDriver` in October 2023 a
 | Feature | Details |
 |---------|---------|
 | **Virtual Monitors** | Create multiple virtual displays with custom resolutions and refresh rates |
-| **Resolution Support** | 71 presets from 640x480 to 10240x4320, plus custom resolutions |
+| **Resolution Support** | 72 presets from 640x480 to 10240x4320, plus custom resolutions |
 | **Refresh Rates** | Floating-point precision (e.g., 59.97 Hz, 23.976 Hz) |
 | **HDR Support** | 10-bit and 12-bit color depth (requires Windows 11 23H2+) |
 | **Color Formats** | RGB 8/10/12-bit, YCbCr 4:4:4, 4:2:2, 4:2:0 (various bit depths) |
 | **Hardware Cursor** | 128x128 pixels with alpha blending and XOR support |
 | **Custom EDID** | Emulate specific monitor profiles via EDID data |
-| **Multi-GPU** | PCI-bus LUID selection for multi-adapter systems |
+| **Multi-GPU** | GPU friendly name selection for multi-adapter systems (resolved to PCI-bus LUID internally) |
 | **Platform Support** | x86, x64, ARM, ARM64 |
 | **Code Signing** | Officially signed via SignPath.io (no test-signing needed on x64) |
 | **Audio Driver** | Bundled virtual audio driver included |
@@ -70,12 +70,12 @@ The project originated as a fork of `roshkins/IddSampleDriver` in October 2023 a
 │  │  │ Profiles     │ │ Control IPC     │  │ │
 │  │  └──────────────┘ └─────────────────┘  │ │
 │  └────────────────────────────────────────┘ │
-│                    UMDF 2.15 (User Mode)     │
+│                   UMDF 2.0/2.25 (User Mode)   │
 └─────────────────────────────────────────────┘
 ```
 
-- **IddCx 1.10** - Microsoft's Indirect Display Driver Class Extension (latest version)
-- **UMDF 2.15/2.25** - User-Mode Driver Framework (2.25 for x64, 2.15 for ARM)
+- **IddCx 1.10** - Microsoft's Indirect Display Driver Class Extension (compile target for x64/ARM64; INF minimum IddCx 1.2; runtime feature detection via `IDD_IS_FIELD_AVAILABLE`)
+- **UMDF 2.0/2.25** - User-Mode Driver Framework (2.25 for x64/ARM64, 2.0 for Win32/ARM)
 - **Direct3D 11.2 + DXGI 1.5** - GPU rendering pipeline
 - **Named Pipes** - IPC mechanism for runtime control
 - **XML Configuration** - Settings file at `C:\VirtualDisplayDriver\vdd_settings.xml`
@@ -106,23 +106,23 @@ The pipe supports 17 commands:
 
 | Command | Purpose |
 |---------|---------|
-| `CYCLEDISPLAY` | Add or remove a virtual monitor |
-| `SETRESOLUTION` | Set resolution and refresh rate |
-| `HDR` | Toggle HDR mode |
-| `REFRESH` | Reload settings from XML |
-| `LOG_DEBUG` | Control debug log output |
-| `LOGGING` | Configure logging settings |
-| `HDRPLUS` | HDR+ mode control |
-| `SDR10` | SDR 10-bit mode control |
-| `CUSTOMEDID` | Apply custom EDID data |
-| `PREVENTSPOOF` | Control monitor spoofing prevention |
-| `CEAOVERRIDE` | Override CEA display modes |
+| `PING` | Health check / connectivity probe (responds `PONG`) |
+| `SETDISPLAYCOUNT N` | Set the total number of active virtual monitors |
+| `GETSETTINGS` | Query current debug/logging settings |
+| `RELOAD_DRIVER` | Force adapter reload (dangerous -- do not use directly; see [issue #351](https://github.com/VirtualDrivers/Virtual-Display-Driver/issues/351)) |
+| `LOG_DEBUG` | Toggle debug log output |
+| `LOGGING` | Toggle general logging |
+| `HDRPLUS` | Toggle HDR+ mode |
+| `SDR10` | Toggle SDR 10-bit mode |
+| `CUSTOMEDID` | Toggle custom EDID profiles |
+| `PREVENTSPOOF` | Toggle monitor spoofing prevention |
+| `CEAOVERRIDE` | Toggle EDID CEA block override |
 | `HARDWARECURSOR` | Toggle hardware cursor support |
-| `D3DDEVICEGPU` | Set D3D device GPU selection |
+| `D3DDEVICEGPU` | Initialize D3D device and query GPU info |
 | `IDDCXVERSION` | Query IddCx framework version |
 | `GETASSIGNEDGPU` | Query the currently assigned GPU |
 | `GETALLGPUS` | Enumerate all available GPUs |
-| `SETGPU` | Set GPU for rendering |
+| `SETGPU` | Select GPU for rendering (by friendly name) |
 
 ---
 
@@ -131,25 +131,26 @@ The pipe supports 17 commands:
 ```
 Virtual-Display-Driver/
 ├── Virtual Display Driver (HDR)/
-│   └── MttVDD/                          # Core driver project
-│       ├── Driver.cpp / Driver.h        # Main driver implementation
-│       ├── MttVDD.inf                   # Windows driver installation manifest
-│       ├── MttVDD.vcxproj               # Visual Studio project (multi-platform)
-│       ├── Edid/                         # Custom EDID monitor profiles
-│       └── ThirdParty/                   # UMDF 2.15 headers
+│   ├── MttVDD/                          # Core driver project
+│   │   ├── Driver.cpp / Driver.h        # Main driver implementation
+│   │   ├── MttVDD.inf                   # Windows driver installation manifest
+│   │   ├── MttVDD.vcxproj               # Visual Studio project (multi-platform)
+│   │   └── Edid/                        # Custom EDID monitor profiles
+│   ├── GetIddCx/                        # Utility to query IddCx version
+│   ├── vdd_settings.xml                 # XML configuration file
+│   └── option.txt                       # 72 resolution presets
 │
 ├── Virtual-Audio-Driver (Latest Stable)/ # Bundled virtual audio driver
 │
-├── Community Scripts/                    # PowerShell/Batch automation
-│   ├── Install-VDD.ps1                  # Automated installation
-│   ├── Change-Resolution.ps1            # Resolution switching
-│   ├── Toggle-HDR.ps1                   # HDR enable/disable
-│   └── ... (9+ scripts total)
+├── Community Scripts/                    # PowerShell/Batch automation (13 scripts)
+│   ├── silent-install.ps1               # Automated installation
+│   ├── changeres-VDD.ps1               # Resolution switching
+│   ├── HDRswitch-VDD.ps1               # HDR enable/disable
+│   └── ... (12 PowerShell + 1 batch)
 │
-├── GetIddCx/                            # Utility to query IddCx version
-│
-├── vdd_settings.xml                     # XML configuration file
-├── option.txt                           # 71 resolution presets
+├── Common/                              # Shared code
+├── ThirdParty/                          # Third-party dependencies (UMDF headers)
+├── scripts/                             # Helper scripts
 └── README.md
 ```
 
@@ -166,8 +167,8 @@ Virtual-Display-Driver/
 
 - **IDE:** Visual Studio (`.sln` / `.vcxproj`)
 - **Targets:** Debug/Release for Win32, x64, ARM, ARM64
-- **UMDF Version:** 2.25 (x64), 2.15 (ARM/ARM64)
-- **IddCx Version:** 1.10 (x64 only, lower for other platforms)
+- **UMDF Version:** 2.25 (x64/ARM64), 2.0 (Win32/ARM)
+- **IddCx Version:** 1.10 compile target (x64/ARM64), 1.0 (Win32/ARM); INF minimum 1.2; runtime feature detection
 - **Security:** Spectre mitigation enabled (x64)
 - **Dependencies:** VC++ Redistributable runtime
 
@@ -175,13 +176,13 @@ Virtual-Display-Driver/
 
 ## 6. Configuration (`vdd_settings.xml`)
 
-The driver is configured via an XML file at `C:\VirtualDisplayDriver\vdd_settings.xml`:
+The driver is configured via an XML file at `C:\VirtualDisplayDriver\vdd_settings.xml` (the base directory is configurable via the registry key `HKLM\SOFTWARE\MikeTheTech\VirtualDisplayDriver\VDDPATH`):
 
 - **Resolutions & Refresh Rates** - Custom lists with floating-point precision
 - **Color Format** - RGB/YCbCr variants, bit depth selection
 - **HDR Parameters** - Enable/disable, bit depth (10/12)
 - **EDID Profiles** - Custom monitor identification data
-- **GPU Selection** - PCI-bus LUID for multi-GPU systems
+- **GPU Selection** - GPU friendly name for multi-GPU systems (resolved to PCI-bus LUID internally)
 - **Logging** - Debug logging configuration
 - **Cursor Settings** - Hardware cursor parameters
 - **`auto_resolutions`** - EDID-based automatic resolution generation with filtering (min/max refresh rate, min/max resolution, fractional rate exclusion)
@@ -189,7 +190,7 @@ The driver is configured via an XML file at `C:\VirtualDisplayDriver\vdd_setting
 - **`monitor_emulation`** - Physical dimension emulation and manufacturer spoofing (loaded but currently unused in driver)
 - **`edid_integration`** - Auto-configure from EDID profiles (`enabled`, `auto_configure_from_edid`, `edid_profile_path`, `override_manual_settings`, `fallback_on_error`)
 
-The `option.txt` file provides 71 resolution presets ranging from 640x480 to 10240x4320.
+The `option.txt` file provides 72 resolution presets ranging from 640x480 to 10240x4320.
 
 > **Note:** The upstream `option.txt` contains likely typos in three entries:
 > - `800, 5000, 500` — height 5000 likely should be 600
@@ -203,7 +204,7 @@ The `option.txt` file provides 71 resolution presets ranging from 640x480 to 102
 | Tool | Description |
 |------|-------------|
 | **Virtual Driver Control (VDC)** | GUI application for installing, managing, and configuring virtual displays |
-| **Community PowerShell Scripts** | 9+ automation scripts for install, resolution changes, HDR toggle, etc. |
+| **Community PowerShell Scripts** | 13 automation scripts (12 PowerShell + 1 batch) for install, resolution changes, HDR toggle, etc. |
 | **GetIddCx** | CLI utility to query the installed IddCx framework version |
 
 ---
@@ -270,7 +271,7 @@ VDD is the **most advanced open-source IDD implementation** available:
 
 | Feature | VDD | Other IDD Projects |
 |---------|-----|-------------------|
-| IddCx Version | 1.10 (latest) | 1.2 - 1.5 |
+| IddCx Version | Targets 1.10 (latest), minimum 1.2 | 1.2 - 1.5 |
 | HDR | Yes | Rare |
 | ARM64 | Yes | No |
 | Custom EDID | Yes | No |
@@ -282,11 +283,11 @@ VDD is the **most advanced open-source IDD implementation** available:
 
 ## 12. Key Takeaways for Research
 
-1. **IddCx 1.10 is the target framework** - latest Microsoft API for virtual displays
+1. **IddCx 1.10 is the compile target** (x64/ARM64) - latest Microsoft API for virtual displays, with IddCx 1.2 INF minimum and runtime feature detection
 2. **UMDF (user-mode) is the safe approach** - no kernel-mode BSOD risk
 3. **C++ with WRL COM is the implementation pattern** - standard Windows driver approach
 4. **Named pipes for IPC** - 17 commands for runtime control
 5. **XML for configuration** - persistent settings
-6. **No programmatic API exists yet** - most requested community feature
+6. **Named pipe IPC is the programmatic API** - 17 commands for runtime control; the community has requested a higher-level C/C++ library wrapping this protocol
 7. **D3D11 + DXGI for rendering** - standard GPU pipeline
 8. **The driver is essentially a frame buffer consumer** - SwapChainProcessor grabs frames from IddCx

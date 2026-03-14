@@ -6,7 +6,7 @@ This document is a comprehensive technical reference for the named pipe protocol
 
 ## 1. Overview
 
-The upstream MttVDD driver ([VirtualDrivers/Virtual-Display-Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver)) is a Windows Indirect Display Driver (IDD) built on Microsoft's IddCx 1.2 framework (INF target `IddCx0102`). The driver calls `IddCxGetVersion()` at runtime to detect the installed IddCx version. It runs as a User-Mode Driver Framework (UMDF) DLL (`MttVDD.dll`) and creates virtual monitors without requiring physical display hardware.
+The upstream MttVDD driver ([VirtualDrivers/Virtual-Display-Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver)) is a Windows Indirect Display Driver (IDD) built on Microsoft's IddCx framework (INF minimum: IddCx 1.2 via `IddCx0102`; compile target: IddCx 1.10 for x64/ARM64 Release builds). The driver uses `IDD_IS_FIELD_AVAILABLE` for runtime feature detection and calls `IddCxGetVersion()` for diagnostics. It runs as a User-Mode Driver Framework (UMDF) DLL (`MttVDD.dll`) and creates virtual monitors without requiring physical display hardware.
 
 At runtime, the driver exposes a named pipe at:
 
@@ -362,7 +362,7 @@ The upstream driver reads monitor profiles from `C:\VirtualDisplayDriver\vdd_set
 
 `SETDISPLAYCOUNT N` sets the number of active virtual monitors but does not configure them individually. Each of the N monitors inherits its profile from the corresponding entry in `vdd_settings.xml`. To change a monitor's resolution or refresh rate, you edit the XML file and then send a `SETDISPLAYCOUNT` command (or restart the driver) to reload the configuration.
 
-The `option.txt` file in the upstream repository provides 40+ resolution presets ranging from 640x480 to 10240x4320, which can be used as reference values for the XML configuration.
+The `option.txt` file in the upstream repository provides 72 resolution presets ranging from 640x480 to 10240x4320, which can be used as reference values for the XML configuration.
 
 ### File Location
 

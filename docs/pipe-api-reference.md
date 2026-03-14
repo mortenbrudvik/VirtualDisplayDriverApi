@@ -438,12 +438,12 @@ The pipe protocol controls **how many** virtual monitors are active (`SETDISPLAY
 
 | Area | Details |
 |---|---|
-| **Resolutions** | 40+ presets from 640x480 to 10240x4320; custom resolutions supported |
+| **Resolutions** | 72 presets from 640x480 to 10240x4320; custom resolutions supported |
 | **Refresh rates** | Integer and fractional values (e.g., 60 Hz, 59.94 Hz via 60000/1001 notation) |
 | **Color format** | RGB 8/10/12-bit, YCbCr 4:4:4, 4:2:2, 4:2:0 at various bit depths |
 | **HDR** | 10-bit and 12-bit color depth (requires Windows 11 23H2 or later) |
 | **EDID profiles** | Custom monitor identification data for emulating specific displays |
-| **GPU selection** | PCI LUID for targeting a specific adapter in multi-GPU systems |
+| **GPU selection** | GPU friendly name for targeting a specific adapter in multi-GPU systems (resolved to PCI-bus LUID internally) |
 | **Logging** | Debug logging configuration |
 | **Cursor settings** | Hardware cursor parameters (128x128 with alpha blending) |
 
