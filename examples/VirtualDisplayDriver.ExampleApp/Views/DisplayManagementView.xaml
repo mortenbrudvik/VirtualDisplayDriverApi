@@ -12,7 +12,15 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <!-- Header -->
-            <TextBlock AutomationProperties.AutomationId="DisplayHeader" Text="Display Management" FontSize="22" FontWeight="Bold" Margin="0,0,0,4" />
+            <DockPanel Margin="0,0,0,4">
+                <TextBlock AutomationProperties.AutomationId="DisplayHeader" Text="Display Management" FontSize="22" FontWeight="Bold" />
+                <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Hyperlink Click="OpenWindowsDisplaySettings_Click"
+                               Foreground="{StaticResource AccentPrimary}" TextDecorations="None">
+                        Open Windows Display Settings
+                    </Hyperlink>
+                </TextBlock>
+            </DockPanel>
             <TextBlock Text="Add, remove, or set the number of virtual displays"
                        Foreground="{StaticResource TextSecondary}" FontSize="13" Margin="0,0,0,20" />
 
