@@ -7,6 +7,58 @@ public static class VirtualDisplayConfiguration
     private const string VddMonitorDeviceId = "MTT1337";
 
     /// <summary>
+    /// Returns all active display monitors on the system with position, resolution, and type information.
+    /// </summary>
+    public static IReadOnlyList<SystemMonitor> GetAllMonitors()
+    {
+        var result = new List<SystemMonitor>();
+        var adapter = NewDisplayDevice();
+
+        for (uint i = 0; NativeMethods.EnumDisplayDevices(null, i, ref adapter, 0); i++)
+        {
+            if ((adapter.StateFlags & NativeMethods.DISPLAY_DEVICE_ACTIVE) == 0)
+            {
+                adapter.cb = Marshal.SizeOf<NativeMethods.DISPLAY_DEVICE>();
+                continue;
+            }
+
+            var devMode = NewDevMode();
+            if (!NativeMethods.EnumDisplaySettings(adapter.DeviceName, NativeMethods.ENUM_CURRENT_SETTINGS, ref devMode))
+            {
+                adapter.cb = Marshal.SizeOf<NativeMethods.DISPLAY_DEVICE>();
+                continue;
+            }
+
+            var monitor = NewDisplayDevice();
+            var isVirtual = NativeMethods.EnumDisplayDevices(adapter.DeviceName, 0, ref monitor, 0)
+                            && monitor.DeviceID.Contains(VddMonitorDeviceId, StringComparison.OrdinalIgnoreCase);
+
+            var isPrimary = (adapter.StateFlags & NativeMethods.DISPLAY_DEVICE_PRIMARY_DEVICE) != 0;
+
+            var displayNumber = 0;
+            var name = adapter.DeviceName; // e.g. "\\.\DISPLAY3"
+            if (name.StartsWith(@"\\.\DISPLAY", StringComparison.OrdinalIgnoreCase))
+                int.TryParse(name.AsSpan(@"\\.\DISPLAY".Length), out displayNumber);
+
+            result.Add(new SystemMonitor(
+                displayNumber,
+                adapter.DeviceName,
+                adapter.DeviceString ?? "",
+                devMode.dmPositionX,
+                devMode.dmPositionY,
+                (int)devMode.dmPelsWidth,
+                (int)devMode.dmPelsHeight,
+                (int)devMode.dmDisplayFrequency,
+                isVirtual,
+                isPrimary));
+
+            adapter.cb = Marshal.SizeOf<NativeMethods.DISPLAY_DEVICE>();
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Returns all active virtual display monitors with their current resolution.
     /// </summary>
     public static IReadOnlyList<VirtualMonitor> GetVirtualMonitors()
@@ -120,6 +172,7 @@ public static class VirtualDisplayConfiguration
         public const uint DM_PELSHEIGHT = 0x00100000;
         public const uint DM_DISPLAYFREQUENCY = 0x00400000;
         public const int DISPLAY_DEVICE_ACTIVE = 0x00000001;
+        public const int DISPLAY_DEVICE_PRIMARY_DEVICE = 0x00000004;
         public const int DISP_CHANGE_SUCCESSFUL = 0;
         public const int DISP_CHANGE_RESTART = 1;
         public const int DISP_CHANGE_FAILED = -1;

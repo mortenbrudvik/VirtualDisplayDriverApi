@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using VirtualDisplayDriver.ExampleApp.Services;
@@ -9,6 +10,7 @@ public partial class DisplayManagementViewModel : ObservableObject
     private readonly IVirtualDisplayManager _manager;
     private readonly IVirtualDisplaySetup _setup;
     private readonly IActivityLogger _logger;
+    private readonly IMonitorService _monitorService;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RemoveAllCommand))]
@@ -18,13 +20,22 @@ public partial class DisplayManagementViewModel : ObservableObject
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string? _errorMessage;
 
-    public DisplayManagementViewModel(IVirtualDisplayManager manager, IVirtualDisplaySetup setup, IActivityLogger logger)
+    [ObservableProperty]
+    private SystemMonitor? _selectedMonitor;
+
+    public ReadOnlyObservableCollection<SystemMonitor> Monitors => _monitorService.Monitors;
+    public bool HasMonitors => Monitors.Count > 0;
+
+    public DisplayManagementViewModel(IVirtualDisplayManager manager, IVirtualDisplaySetup setup,
+        IActivityLogger logger, IMonitorService monitorService)
     {
         _manager = manager;
         _setup = setup;
         _logger = logger;
+        _monitorService = monitorService;
         CurrentDisplayCount = manager.DisplayCount;
         TargetDisplayCount = manager.DisplayCount;
+        _monitorService.RefreshTopology();
     }
 
     [RelayCommand]
@@ -63,6 +74,8 @@ public partial class DisplayManagementViewModel : ObservableObject
             CurrentDisplayCount = _manager.DisplayCount;
             TargetDisplayCount = CurrentDisplayCount;
             _logger.LogSuccess("Display", $"{action} complete — display count is now {CurrentDisplayCount}");
+            _monitorService.RefreshTopology();
+            OnPropertyChanged(nameof(HasMonitors));
 
             // The driver restarts after display count changes and may crash (Code 43).
             // Wait briefly, then check device state and auto-recover if needed.
@@ -123,6 +136,8 @@ public partial class DisplayManagementViewModel : ObservableObject
                 await _manager.SyncDisplayCountAsync(xmlCount);
                 CurrentDisplayCount = _manager.DisplayCount;
                 _logger.LogSuccess("Display", "Driver recovered automatically.");
+                _monitorService.RefreshTopology();
+                OnPropertyChanged(nameof(HasMonitors));
             }
             else
             {

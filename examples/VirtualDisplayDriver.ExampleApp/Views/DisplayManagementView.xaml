@@ -1,7 +1,8 @@
 <UserControl x:Class="VirtualDisplayDriver.ExampleApp.Views.DisplayManagementView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:converters="clr-namespace:VirtualDisplayDriver.ExampleApp.Converters">
+             xmlns:converters="clr-namespace:VirtualDisplayDriver.ExampleApp.Converters"
+             xmlns:views="clr-namespace:VirtualDisplayDriver.ExampleApp.Views">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -26,6 +27,16 @@
                     Visibility="{Binding ErrorMessage, Converter={StaticResource NullToCollapsed}, FallbackValue=Collapsed}">
                 <TextBlock AutomationProperties.AutomationId="DisplayErrorText"
                            Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentError}" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Display Topology Map -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="DISPLAY TOPOLOGY" FontSize="10"
+                               Foreground="{StaticResource TextDim}"
+                               FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <views:DisplayTopologyControl DataContext="{Binding}" />
+                </StackPanel>
             </Border>
 
             <!-- Set Specific Count -->

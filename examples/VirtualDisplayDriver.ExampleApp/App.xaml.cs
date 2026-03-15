@@ -36,6 +36,7 @@ public partial class App : Application
         // App services
         services.AddSingleton<IActivityLogger, ActivityLogger>();
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<IMonitorService, MonitorService>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();

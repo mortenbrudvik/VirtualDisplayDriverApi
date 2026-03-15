@@ -1,0 +1,143 @@
+<UserControl x:Class="VirtualDisplayDriver.ExampleApp.Views.DisplayTopologyControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:VirtualDisplayDriver.ExampleApp.Converters">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <SolidColorBrush x:Key="VirtualBorder" Color="#FF89B4FA" />
+        <SolidColorBrush x:Key="VirtualFill" Color="#2289B4FA" />
+        <SolidColorBrush x:Key="PhysicalBorder" Color="#FF6C7086" />
+        <SolidColorBrush x:Key="PhysicalFill" Color="#22444466" />
+    </UserControl.Resources>
+
+    <Grid MinHeight="180">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Monitor Map -->
+        <Border x:Name="MapBorder" Grid.Column="0"
+                Background="{StaticResource BackgroundPrimary}"
+                CornerRadius="6"
+                Padding="12"
+                Margin="0,0,12,0">
+            <Grid>
+                <!-- Empty state -->
+                <TextBlock x:Name="EmptyText" Text="No displays detected"
+                           Foreground="{StaticResource TextDim}"
+                           FontSize="12"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Visibility="Collapsed" />
+
+                <ItemsControl x:Name="MonitorList" ItemsSource="{Binding Monitors}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas x:Name="MonitorCanvas" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border x:Name="MonitorBorder"
+                                    BorderThickness="2"
+                                    CornerRadius="4"
+                                    Cursor="Hand"
+                                    MouseLeftButtonDown="Monitor_Click">
+                                <StackPanel VerticalAlignment="Center"
+                                            HorizontalAlignment="Center">
+                                    <TextBlock x:Name="NumberText"
+                                               Text="{Binding DisplayNumber}"
+                                               FontSize="16" FontWeight="Bold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="ResText" FontSize="9"
+                                               HorizontalAlignment="Center">
+                                        <Run Text="{Binding Width, Mode=OneWay}" /><Run Text="x" /><Run Text="{Binding Height, Mode=OneWay}" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsVirtual}" Value="True">
+                                    <Setter TargetName="MonitorBorder" Property="BorderBrush" Value="{StaticResource VirtualBorder}" />
+                                    <Setter TargetName="MonitorBorder" Property="Background" Value="{StaticResource VirtualFill}" />
+                                    <Setter TargetName="NumberText" Property="Foreground" Value="{StaticResource AccentPrimary}" />
+                                    <Setter TargetName="ResText" Property="Foreground" Value="{StaticResource AccentPrimary}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsVirtual}" Value="False">
+                                    <Setter TargetName="MonitorBorder" Property="BorderBrush" Value="{StaticResource PhysicalBorder}" />
+                                    <Setter TargetName="MonitorBorder" Property="Background" Value="{StaticResource PhysicalFill}" />
+                                    <Setter TargetName="NumberText" Property="Foreground" Value="{StaticResource TextSecondary}" />
+                                    <Setter TargetName="ResText" Property="Foreground" Value="{StaticResource TextDim}" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </Border>
+
+        <!-- Detail Panel (always takes space; content swaps between details and placeholder) -->
+        <Grid Grid.Column="1">
+            <StackPanel x:Name="DetailPanel" Visibility="Hidden">
+                <!-- Type badge -->
+                <Border x:Name="TypeBadge" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left" Margin="0,0,0,12">
+                    <TextBlock x:Name="TypeText" FontSize="10" FontWeight="SemiBold" />
+                </Border>
+
+                <!-- Display name -->
+                <TextBlock x:Name="DisplayName"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimary}"
+                           Margin="0,0,0,16" />
+
+                <!-- Resolution -->
+                <TextBlock Text="RESOLUTION" FontSize="9" Foreground="{StaticResource TextDim}"
+                           FontWeight="SemiBold" Margin="0,0,0,2" />
+                <TextBlock x:Name="ResolutionValue" FontSize="13"
+                           Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+
+                <!-- Refresh Rate -->
+                <TextBlock Text="REFRESH RATE" FontSize="9" Foreground="{StaticResource TextDim}"
+                           FontWeight="SemiBold" Margin="0,0,0,2" />
+                <TextBlock x:Name="RefreshRateValue" FontSize="13"
+                           Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+
+                <!-- Position -->
+                <TextBlock Text="POSITION" FontSize="9" Foreground="{StaticResource TextDim}"
+                           FontWeight="SemiBold" Margin="0,0,0,2" />
+                <TextBlock x:Name="PositionValue" FontSize="13"
+                           Foreground="{StaticResource TextPrimary}" Margin="0,0,0,12" />
+
+                <!-- Device -->
+                <TextBlock Text="DEVICE" FontSize="9" Foreground="{StaticResource TextDim}"
+                           FontWeight="SemiBold" Margin="0,0,0,2" />
+                <TextBlock x:Name="DeviceValue" FontSize="13"
+                           Foreground="{StaticResource TextPrimary}" />
+            </StackPanel>
+
+            <!-- Placeholder when nothing selected -->
+            <TextBlock x:Name="Placeholder"
+                       Text="Click a display to view details"
+                       Foreground="{StaticResource TextDim}"
+                       FontSize="12"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center" />
+        </Grid>
+
+        <!-- Legend (bottom of map column) -->
+        <StackPanel Grid.Column="0" Orientation="Horizontal"
+                    VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                    Margin="12,0,0,0">
+            <Border Width="12" Height="12" BorderThickness="2" CornerRadius="2"
+                    BorderBrush="{StaticResource PhysicalBorder}" Margin="0,0,4,0" />
+            <TextBlock Text="Physical" FontSize="9" Foreground="{StaticResource TextDim}"
+                       VerticalAlignment="Center" Margin="0,0,14,0" />
+            <Border Width="12" Height="12" BorderThickness="2" CornerRadius="2"
+                    BorderBrush="{StaticResource VirtualBorder}"
+                    Background="{StaticResource VirtualFill}" Margin="0,0,4,0" />
+            <TextBlock Text="Virtual" FontSize="9" Foreground="{StaticResource TextDim}"
+                       VerticalAlignment="Center" />
+        </StackPanel>
+    </Grid>
+</UserControl>
