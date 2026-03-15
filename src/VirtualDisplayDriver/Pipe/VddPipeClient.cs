@@ -25,7 +25,14 @@ public class VddPipeClient : IVddPipeClient
     public async Task<string> GetSettingsAsync(CancellationToken ct = default)
     {
         var responseBytes = await SendCommandRawAsync("GETSETTINGS", ct);
-        return Encoding.Unicode.GetString(responseBytes).TrimEnd('\0').Trim();
+
+        // Try UTF-16LE first (original protocol), fall back to UTF-8 (newer driver versions
+        // respond through the log-through-pipe mechanism which uses UTF-8).
+        var utf16 = Encoding.Unicode.GetString(responseBytes).TrimEnd('\0').Trim();
+        if (utf16.Contains("DEBUG=", StringComparison.OrdinalIgnoreCase))
+            return utf16;
+
+        return Encoding.UTF8.GetString(responseBytes).TrimEnd('\0').Trim();
     }
 
     public Task<string> SendToggleAsync(string command, bool value, CancellationToken ct = default)

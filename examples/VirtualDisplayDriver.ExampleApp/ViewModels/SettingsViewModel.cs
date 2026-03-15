@@ -32,28 +32,23 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task RefreshSettingsAsync()
+    private Task RefreshSettingsAsync()
     {
-        IsLoading = true;
         ErrorMessage = null;
-        _logger.LogInfo("Settings", "Querying driver settings...");
+        _logger.LogInfo("Settings", "Reading settings from vdd_settings.xml...");
 
-        try
-        {
-            var settings = await _manager.GetSettingsAsync();
-            DebugLoggingEnabled = settings.DebugLogging;
-            LoggingEnabled = settings.Logging;
-            _logger.LogSuccess("Settings", $"Settings loaded — Debug: {settings.DebugLogging}, Logging: {settings.Logging}");
-        }
-        catch (VddException ex)
-        {
-            ErrorMessage = ex.Message;
-            _logger.LogError("Settings", $"Failed to query settings: {ex.Message}");
-        }
-        finally
-        {
-            IsLoading = false;
-        }
+        var settings = VirtualDisplayDetection.GetSettingsFromXml();
+        DebugLoggingEnabled = settings.DebugLogging;
+        LoggingEnabled = settings.Logging;
+        HdrPlusEnabled = settings.HdrPlus;
+        Sdr10BitEnabled = settings.Sdr10Bit;
+        CustomEdidEnabled = settings.CustomEdid;
+        PreventSpoofEnabled = settings.PreventSpoof;
+        CeaOverrideEnabled = settings.CeaOverride;
+        HardwareCursorEnabled = settings.HardwareCursor;
+
+        _logger.LogSuccess("Settings", "Settings loaded from XML");
+        return Task.CompletedTask;
     }
 
     [RelayCommand]

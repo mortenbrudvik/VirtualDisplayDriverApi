@@ -113,6 +113,44 @@ public static class VirtualDisplayDetection
         }
     }
 
+    /// <summary>
+    /// Reads all driver settings from vdd_settings.xml.
+    /// Returns default (all false) if the file is not found or cannot be parsed.
+    /// </summary>
+    public static DriverSettings GetSettingsFromXml()
+    {
+        var settingsPath = GetSettingsFilePath();
+        if (settingsPath is null) return new DriverSettings(false, false);
+
+        try
+        {
+            var doc = new XmlDocument();
+            doc.Load(settingsPath);
+
+            return new DriverSettings(
+                DebugLogging: ReadBool(doc, "//debuglogging"),
+                Logging: ReadBool(doc, "//logging"),
+                HdrPlus: ReadBool(doc, "//HDRPlus"),
+                Sdr10Bit: ReadBool(doc, "//SDR10bit"),
+                CustomEdid: ReadBool(doc, "//CustomEdid"),
+                PreventSpoof: ReadBool(doc, "//PreventSpoof"),
+                CeaOverride: ReadBool(doc, "//EdidCeaOverride"),
+                HardwareCursor: ReadBool(doc, "//HardwareCursor"));
+        }
+        catch (Exception ex) when (ex is XmlException or IOException or UnauthorizedAccessException)
+        {
+            return new DriverSettings(false, false);
+        }
+    }
+
+    private static bool ReadBool(XmlDocument doc, string xpath)
+    {
+        var node = doc.SelectSingleNode(xpath);
+        return node is not null
+               && bool.TryParse(node.InnerText.Trim(), out var value)
+               && value;
+    }
+
     private static string? GetRegistryInstallPath()
     {
         try
