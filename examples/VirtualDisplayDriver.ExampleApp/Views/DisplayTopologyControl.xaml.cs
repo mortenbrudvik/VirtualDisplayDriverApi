@@ -168,40 +168,12 @@ public partial class DisplayTopologyControl : UserControl
             TypeBadge.Background = new SolidColorBrush(Color.FromArgb(0x33, 0x89, 0xB4, 0xFA));
             TypeText.Foreground = FindResource("AccentPrimary") as Brush;
             TypeText.Text = "Virtual";
-
-            // Populate resolution picker — unique resolutions only (no Hz duplicates)
-            var modes = VirtualDisplayConfiguration.GetSupportedModes(monitor.DeviceName)
-                .GroupBy(m => (m.Width, m.Height))
-                .Select(g => g.First())
-                .ToList();
-            ModeComboBox.ItemsSource = modes;
-            ModeComboBox.SelectedItem = modes.FirstOrDefault(m => m.Width == monitor.Width && m.Height == monitor.Height);
-            ResolutionPicker.Visibility = Visibility.Visible;
         }
         else
         {
             TypeBadge.Background = new SolidColorBrush(Color.FromArgb(0x33, 0x6C, 0x70, 0x86));
             TypeText.Foreground = FindResource("TextSecondary") as Brush;
             TypeText.Text = "Physical";
-            ResolutionPicker.Visibility = Visibility.Collapsed;
-        }
-    }
-
-    private void ApplyResolution_Click(object sender, RoutedEventArgs e)
-    {
-        if (ModeComboBox.SelectedItem is not DisplayMode mode) return;
-        if (DataContext is not DisplayManagementViewModel vm) return;
-        if (vm.SelectedMonitor is not { } monitor) return;
-
-        try
-        {
-            VirtualDisplayConfiguration.SetResolutionByDeviceName(
-                monitor.DeviceName, mode.Width, mode.Height);
-            vm.ErrorMessage = null;
-        }
-        catch (VddException ex)
-        {
-            vm.ErrorMessage = ex.Message;
         }
     }
 
