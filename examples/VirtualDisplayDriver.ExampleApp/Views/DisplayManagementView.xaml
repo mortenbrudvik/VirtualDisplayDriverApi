@@ -74,13 +74,6 @@
                     </Grid>
                 </StackPanel>
             </Border>
-
-            <!-- Remove All -->
-            <Button AutomationProperties.AutomationId="RemoveAllButton" Content="Remove All Displays"
-                    Command="{Binding RemoveAllCommand}"
-                    IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
-                    Style="{StaticResource DangerButton}"
-                    HorizontalAlignment="Left" />
         </StackPanel>
     </ScrollViewer>
 </UserControl>
