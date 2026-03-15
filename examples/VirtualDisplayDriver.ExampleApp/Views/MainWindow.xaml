@@ -59,34 +59,6 @@
                                Margin="0,2,0,0" />
                 </StackPanel>
 
-                <!-- Sidebar Status Card -->
-                <Border DockPanel.Dock="Bottom"
-                        Background="{StaticResource BackgroundSecondary}"
-                        CornerRadius="8"
-                        Margin="12,0,12,12"
-                        Padding="12,10">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                            <Ellipse Width="8" Height="8"
-                                     Fill="{Binding IsPipeRunning, Converter={StaticResource BoolToBrush}}"
-                                     Margin="0,0,8,0"
-                                     VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding IsPipeRunning, Converter={StaticResource PipeStatus}}"
-                                       FontSize="12"
-                                       Foreground="{StaticResource TextSecondary}" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="8" Height="8"
-                                     Fill="{Binding IsDriverInstalled, Converter={StaticResource BoolToBrush}}"
-                                     Margin="0,0,8,0"
-                                     VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding IsDriverInstalled, Converter={StaticResource DriverStatus}}"
-                                       FontSize="12"
-                                       Foreground="{StaticResource TextSecondary}" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
                 <!-- Navigation -->
                 <ListBox AutomationProperties.AutomationId="NavListBox"
                          ItemsSource="{Binding NavigationItems}"

@@ -94,7 +94,7 @@
             </Border>
 
             <!-- Stat Cards Grid -->
-            <UniformGrid Columns="3" Margin="0,0,0,16">
+            <UniformGrid Columns="2" Margin="0,0,0,16">
                 <!-- Pipe Running -->
                 <Border Style="{StaticResource Card}" Margin="0,0,8,8">
                     <StackPanel>
@@ -111,7 +111,7 @@
                 </Border>
 
                 <!-- Driver Installed -->
-                <Border Style="{StaticResource Card}" Margin="4,0,4,8">
+                <Border Style="{StaticResource Card}" Margin="8,0,0,8">
                     <StackPanel>
                         <TextBlock Text="DRIVER INSTALLED" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -126,7 +126,7 @@
                 </Border>
 
                 <!-- Connected -->
-                <Border Style="{StaticResource Card}" Margin="8,0,0,8">
+                <Border Style="{StaticResource Card}" Margin="0,0,8,8">
                     <StackPanel>
                         <TextBlock Text="CONNECTED" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -139,22 +139,8 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Ping -->
-                <Border Style="{StaticResource Card}" Margin="0,0,8,8">
-                    <StackPanel>
-                        <TextBlock Text="LAST PING" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Ellipse Width="12" Height="12"
-                                     Fill="{Binding PingResult, Converter={StaticResource BoolToBrush}}"
-                                     Margin="0,0,8,0" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding PingResult, Converter={StaticResource BoolYesNo}}"
-                                       FontSize="20" FontWeight="Bold" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
                 <!-- Display Count -->
-                <Border Style="{StaticResource Card}" Margin="4,0,4,8">
+                <Border Style="{StaticResource Card}" Margin="8,0,0,8">
                     <StackPanel>
                         <TextBlock Text="VIRTUAL DISPLAYS" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
                         <TextBlock AutomationProperties.AutomationId="DisplayCountValue" Text="{Binding DisplayCount}" FontSize="28" FontWeight="Bold"
@@ -162,29 +148,10 @@
                     </StackPanel>
                 </Border>
 
-                <!-- IddCx Version -->
-                <Border Style="{StaticResource Card}" Margin="8,0,0,8">
-                    <StackPanel>
-                        <TextBlock Text="IDDCX VERSION" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding IddCxVersion, FallbackValue='N/A'}" FontSize="16" FontWeight="Bold"
-                                   Foreground="{StaticResource AccentPrimary}" Margin="0,8,0,0" />
-                    </StackPanel>
-                </Border>
             </UniformGrid>
-
-            <!-- Install Path -->
-            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="INSTALL PATH" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding InstallPath, FallbackValue='Not detected'}"
-                               FontSize="13" Margin="0,6,0,0" Foreground="{StaticResource TextSecondary}" />
-                </StackPanel>
-            </Border>
 
             <!-- Actions -->
             <StackPanel Orientation="Horizontal">
-                <Button AutomationProperties.AutomationId="RefreshStatusButton" Content="Refresh" Command="{Binding RefreshStatusCommand}" Margin="0,0,8,0" />
-                <Button AutomationProperties.AutomationId="PingButton" Content="Ping Driver" Command="{Binding PingCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" />
                 <Button AutomationProperties.AutomationId="RestartDriverButton" Content="Restart Device"
                         Command="{Binding RestartDeviceCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" />
                 <Button AutomationProperties.AutomationId="DisableDriverButton" Content="Disable Driver"
