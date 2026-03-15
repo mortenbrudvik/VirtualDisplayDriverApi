@@ -59,6 +59,32 @@ public static class VirtualDisplayConfiguration
     }
 
     /// <summary>
+    /// Returns all supported display modes for the given device, sorted by resolution (descending) then refresh rate (descending).
+    /// </summary>
+    public static IReadOnlyList<DisplayMode> GetSupportedModes(string deviceName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceName);
+
+        var modes = new HashSet<(int W, int H, int Hz)>();
+        var devMode = NewDevMode();
+
+        for (var i = 0; NativeMethods.EnumDisplaySettings(deviceName, i, ref devMode); i++)
+        {
+            if (devMode.dmPelsWidth > 0 && devMode.dmPelsHeight > 0)
+                modes.Add(((int)devMode.dmPelsWidth, (int)devMode.dmPelsHeight, (int)devMode.dmDisplayFrequency));
+
+            devMode = NewDevMode();
+        }
+
+        return modes
+            .OrderByDescending(m => m.W)
+            .ThenByDescending(m => m.H)
+            .ThenByDescending(m => m.Hz)
+            .Select(m => new DisplayMode(m.W, m.H, m.Hz))
+            .ToList();
+    }
+
+    /// <summary>
     /// Returns all active virtual display monitors with their current resolution.
     /// </summary>
     public static IReadOnlyList<VirtualMonitor> GetVirtualMonitors()
