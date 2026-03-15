@@ -28,34 +28,15 @@
                            Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentError}" TextWrapping="Wrap" />
             </Border>
 
-            <!-- Current Count Display -->
-            <Border Style="{StaticResource Card}" Margin="0,0,0,20">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="CURRENT DISPLAYS" FontSize="10" Foreground="{StaticResource TextDim}"
-                               FontWeight="SemiBold" HorizontalAlignment="Center" />
-                    <TextBlock AutomationProperties.AutomationId="CurrentDisplayCount" Text="{Binding CurrentDisplayCount}" FontSize="56" FontWeight="Bold"
-                               Foreground="{StaticResource AccentPrimary}" HorizontalAlignment="Center"
-                               Margin="0,4,0,4" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button AutomationProperties.AutomationId="RemoveDisplayButton" Content=" − " FontSize="18" FontWeight="Bold"
-                                Command="{Binding RemoveDisplayCommand}"
-                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
-                                Style="{StaticResource SecondaryButton}"
-                                Width="48" Padding="0,4" Margin="0,0,8,0" />
-                        <Button AutomationProperties.AutomationId="AddDisplayButton" Content=" + " FontSize="18" FontWeight="Bold"
-                                Command="{Binding AddDisplayCommand}"
-                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBool}}"
-                                Style="{StaticResource SecondaryButton}"
-                                Width="48" Padding="0,4" />
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
             <!-- Set Specific Count -->
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                 <StackPanel>
                     <TextBlock Text="SET DISPLAY COUNT" FontSize="10" Foreground="{StaticResource TextDim}"
-                               FontWeight="SemiBold" Margin="0,0,0,12" />
+                               FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBlock AutomationProperties.AutomationId="CurrentDisplayCount"
+                               FontSize="11" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,12">
+                        <Run Text="Currently: " /><Run Text="{Binding CurrentDisplayCount}" />
+                    </TextBlock>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

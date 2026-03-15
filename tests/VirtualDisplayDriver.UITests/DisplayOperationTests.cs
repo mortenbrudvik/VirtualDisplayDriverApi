@@ -38,11 +38,11 @@ public class DisplayOperationTests : IClassFixture<AppFixture>
 
         // Wait for the page to fully render
         var found = Retry.WhileNull(
-            () => Window.FindFirstDescendant(cf => cf.ByAutomationId("CurrentDisplayCount")),
+            () => Window.FindFirstDescendant(cf => cf.ByAutomationId("SetCountButton")),
             ElementTimeout,
             TimeSpan.FromMilliseconds(500));
 
-        found.Result.Should().NotBeNull("Displays page should render with CurrentDisplayCount visible");
+        found.Result.Should().NotBeNull("Displays page should render with SetCountButton visible");
     }
 
     private bool IsPipeRunning()
@@ -67,71 +67,36 @@ public class DisplayOperationTests : IClassFixture<AppFixture>
     }
 
     // ──────────────────────────────────────────────
-    // Add Display
+    // Set Count (increment)
     // ──────────────────────────────────────────────
 
     [Fact]
-    public void AddDisplay_ShouldChangeCountOrShowError()
+    public void SetCount_ShouldIncrementOrShowError()
     {
         GoToDisplays();
         var before = GetCount();
-        Window.TakeScreenshot("add_01_before");
+        var target = before + 1;
+        Window.TakeScreenshot("increment_01_before");
 
-        Window.FindById("AddDisplayButton", ElementTimeout).AsButton().Invoke();
+        var slider = Window.FindFirstDescendant(cf => cf.ByControlType(ControlType.Slider));
+        slider.Should().NotBeNull();
+        slider!.Patterns.RangeValue.PatternOrDefault?.SetValue(target);
+        Thread.Sleep(300);
+
+        Window.FindById("SetCountButton", ElementTimeout).AsButton().Invoke();
 
         if (IsPipeRunning())
         {
             var after = Window.WaitForDisplayCountChange(before);
-            after.Should().Be(before + 1);
-            Window.TakeScreenshot("add_02_success");
+            after.Should().Be(target);
+            Window.TakeScreenshot("increment_02_success");
         }
         else
         {
             var error = GetError();
             error.Should().NotBeNullOrEmpty("error message should appear when pipe is stopped");
             GetCount().Should().Be(before, "count should not change on error");
-            Window.TakeScreenshot("add_02_error");
-        }
-    }
-
-    // ──────────────────────────────────────────────
-    // Remove Display
-    // ──────────────────────────────────────────────
-
-    [Fact]
-    public void RemoveDisplay_ShouldChangeCountOrShowError()
-    {
-        GoToDisplays();
-        var before = GetCount();
-
-        if (before == 0 && IsPipeRunning())
-        {
-            // Add one first
-            Window.FindById("AddDisplayButton", ElementTimeout).AsButton().Invoke();
-            before = Window.WaitForDisplayCountChange(0);
-        }
-
-        if (before == 0)
-        {
-            // Count is 0 and can't add — just verify button exists
-            Window.FindById("RemoveDisplayButton", ElementTimeout).Should().NotBeNull();
-            return;
-        }
-
-        Window.TakeScreenshot("remove_01_before");
-        Window.FindById("RemoveDisplayButton", ElementTimeout).AsButton().Invoke();
-
-        if (IsPipeRunning())
-        {
-            var after = Window.WaitForDisplayCountChange(before);
-            after.Should().Be(before - 1);
-            Window.TakeScreenshot("remove_02_success");
-        }
-        else
-        {
-            var error = GetError();
-            error.Should().NotBeNullOrEmpty("error should appear when pipe is stopped");
-            Window.TakeScreenshot("remove_02_error");
+            Window.TakeScreenshot("increment_02_error");
         }
     }
 
@@ -209,26 +174,34 @@ public class DisplayOperationTests : IClassFixture<AppFixture>
     // ──────────────────────────────────────────────
 
     [Fact]
-    public void AddThenRemove_ShouldRoundTrip()
+    public void SetCountUpThenDown_ShouldRoundTrip()
     {
         GoToDisplays();
 
         if (!IsPipeRunning())
         {
             // Verify controls exist even when disconnected
-            Window.FindById("AddDisplayButton", ElementTimeout).Should().NotBeNull();
-            Window.FindById("RemoveDisplayButton", ElementTimeout).Should().NotBeNull();
+            Window.FindById("SetCountButton", ElementTimeout).Should().NotBeNull();
+            Window.FindById("RemoveAllButton", ElementTimeout).Should().NotBeNull();
             return;
         }
 
         var original = GetCount();
+        var slider = Window.FindFirstDescendant(cf => cf.ByControlType(ControlType.Slider));
+        slider.Should().NotBeNull();
 
-        Window.FindById("AddDisplayButton", ElementTimeout).AsButton().Invoke();
+        // Set count up
+        slider!.Patterns.RangeValue.PatternOrDefault?.SetValue(original + 1);
+        Thread.Sleep(300);
+        Window.FindById("SetCountButton", ElementTimeout).AsButton().Invoke();
         var afterAdd = Window.WaitForDisplayCountChange(original);
         afterAdd.Should().Be(original + 1);
         Window.TakeScreenshot("roundtrip_added");
 
-        Window.FindById("RemoveDisplayButton", ElementTimeout).AsButton().Invoke();
+        // Set count back down
+        slider.Patterns.RangeValue.PatternOrDefault?.SetValue(original);
+        Thread.Sleep(300);
+        Window.FindById("SetCountButton", ElementTimeout).AsButton().Invoke();
         var afterRemove = Window.WaitForDisplayCountChange(afterAdd);
         afterRemove.Should().Be(original);
         Window.TakeScreenshot("roundtrip_removed");
@@ -243,18 +216,8 @@ public class DisplayOperationTests : IClassFixture<AppFixture>
     {
         GoToDisplays();
 
-        Window.FindById("AddDisplayButton", ElementTimeout).Should().NotBeNull();
-        Window.FindById("RemoveDisplayButton", ElementTimeout).Should().NotBeNull();
         Window.FindById("SetCountButton", ElementTimeout).Should().NotBeNull();
         Window.FindById("RemoveAllButton", ElementTimeout).Should().NotBeNull();
-    }
-
-    [Fact]
-    public void AddButton_ShouldAlwaysBeEnabled()
-    {
-        GoToDisplays();
-        Window.FindById("AddDisplayButton", ElementTimeout).AsButton()
-            .IsEnabled.Should().BeTrue();
     }
 
     // ──────────────────────────────────────────────
@@ -294,9 +257,9 @@ public class DisplayOperationTests : IClassFixture<AppFixture>
         Window.FindById("ClearLogButton", ElementTimeout).AsButton().Invoke();
         Thread.Sleep(300);
 
-        // Attempt Add Display
+        // Attempt Set Display Count
         GoToDisplays();
-        Window.FindById("AddDisplayButton", ElementTimeout).AsButton().Invoke();
+        Window.FindById("SetCountButton", ElementTimeout).AsButton().Invoke();
         Thread.Sleep(8000); // wait for success or connection timeout
 
         // Check log
@@ -324,13 +287,11 @@ public class DisplayOperationTests : IClassFixture<AppFixture>
     {
         GoToDisplays();
 
-        Window.FindById("AddDisplayButton", ElementTimeout).AsButton().Invoke();
+        Window.FindById("SetCountButton", ElementTimeout).AsButton().Invoke();
         Thread.Sleep(8000);
 
         // All controls still present
         Window.FindById("DisplayHeader", ElementTimeout).Should().NotBeNull();
-        Window.FindById("CurrentDisplayCount", ElementTimeout).Should().NotBeNull();
-        Window.FindById("AddDisplayButton", ElementTimeout).Should().NotBeNull();
         Window.FindById("SetCountButton", ElementTimeout).Should().NotBeNull();
         Window.FindById("RemoveAllButton", ElementTimeout).Should().NotBeNull();
         Window.TakeScreenshot("resilience_check");

@@ -148,22 +148,7 @@ public class DashboardTests : IClassFixture<AppFixture>
         header.Should().NotBeNull();
         header.Name.Should().Be("Display Management");
 
-        var countDisplay = Window.FindById("CurrentDisplayCount");
-        countDisplay.Should().NotBeNull();
-
         Window.TakeScreenshot("03_display_page");
-    }
-
-    [Fact]
-    public void DisplayPage_ShouldHave_AddRemoveButtons()
-    {
-        Window.NavigateTo("Displays");
-
-        var addBtn = Window.FindById("AddDisplayButton").AsButton();
-        addBtn.Should().NotBeNull();
-
-        var removeBtn = Window.FindById("RemoveDisplayButton").AsButton();
-        removeBtn.Should().NotBeNull();
     }
 
     [Fact]
@@ -183,22 +168,6 @@ public class DashboardTests : IClassFixture<AppFixture>
 
         var removeAllBtn = Window.FindById("RemoveAllButton").AsButton();
         removeAllBtn.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void DisplayPage_AddButton_ShouldBeClickable()
-    {
-        Window.NavigateTo("Displays");
-
-        var addBtn = Window.FindById("AddDisplayButton").AsButton();
-        addBtn.Invoke();
-
-        Thread.Sleep(1000);
-
-        // Page should still be intact
-        var header = Window.FindById("DisplayHeader");
-        header.Should().NotBeNull();
-        Window.TakeScreenshot("03_display_after_add");
     }
 
     // ──────────────────────────────────────────────

@@ -11,7 +11,6 @@ public partial class DisplayManagementViewModel : ObservableObject
     private readonly IActivityLogger _logger;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RemoveDisplayCommand))]
     [NotifyCanExecuteChangedFor(nameof(RemoveAllCommand))]
     private int _currentDisplayCount;
 
@@ -34,22 +33,6 @@ public partial class DisplayManagementViewModel : ObservableObject
         await ExecuteAsync("Set Display Count",
             $"Setting display count to {TargetDisplayCount}...",
             () => _manager.SetDisplayCountAsync(TargetDisplayCount));
-    }
-
-    [RelayCommand]
-    private async Task AddDisplayAsync()
-    {
-        await ExecuteAsync("Add Display",
-            "Adding 1 display...",
-            () => _manager.AddDisplaysAsync(1));
-    }
-
-    [RelayCommand(CanExecute = nameof(CanRemove))]
-    private async Task RemoveDisplayAsync()
-    {
-        await ExecuteAsync("Remove Display",
-            "Removing 1 display...",
-            () => _manager.RemoveDisplaysAsync(1));
     }
 
     [RelayCommand(CanExecute = nameof(CanRemove))]
