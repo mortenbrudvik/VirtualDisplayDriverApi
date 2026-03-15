@@ -56,7 +56,6 @@ public partial class StatusViewModel : ObservableObject
         try
         {
             IsPipeRunning = VirtualDisplayDetection.IsPipeRunning();
-            IsDriverInstalled = VirtualDisplayDetection.IsDriverInstalled();
             InstallPath = VirtualDisplayDetection.GetInstallPath();
 
             PingResult = await _manager.PingAsync();
@@ -93,8 +92,9 @@ public partial class StatusViewModel : ObservableObject
         finally
         {
             // Check device state to determine which banner to show
+            var filesExist = VirtualDisplayDetection.IsDriverInstalled();
             var deviceState = DeviceState.NotFound;
-            if (IsDriverInstalled && !IsPipeRunning)
+            if (filesExist && !IsPipeRunning)
             {
                 try
                 {
@@ -104,8 +104,9 @@ public partial class StatusViewModel : ObservableObject
             }
 
             // NotFound = driver files may exist but not registered with Windows (needs install)
-            var needsInstall = !IsDriverInstalled || (!IsPipeRunning && deviceState == DeviceState.NotFound);
+            var needsInstall = !filesExist || (!IsPipeRunning && deviceState == DeviceState.NotFound);
             ShowInstallBanner = needsInstall;
+            IsDriverInstalled = !needsInstall;
             ShowReinstallBanner = !needsInstall && deviceState == DeviceState.Error;
             ShowEnableBanner = !needsInstall && !IsPipeRunning && deviceState != DeviceState.Error;
             IsLoading = false;
