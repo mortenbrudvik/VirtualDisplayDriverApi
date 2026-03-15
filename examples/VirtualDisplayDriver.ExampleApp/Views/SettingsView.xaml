@@ -27,13 +27,7 @@
             <!-- Feature Toggles (Reload-Triggering) -->
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                 <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <TextBlock Text="FEATURE SETTINGS" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" />
-                        <Border Background="#33F9E2AF" CornerRadius="4" Padding="6,2" Margin="12,0,0,0">
-                            <TextBlock Text="Triggers driver reload (30s cooldown)" FontSize="10"
-                                       Foreground="{StaticResource AccentWarning}" />
-                        </Border>
-                    </StackPanel>
+                    <TextBlock Text="FEATURE SETTINGS" FontSize="10" Foreground="{StaticResource TextDim}" FontWeight="SemiBold" Margin="0,0,0,4" />
 
                     <!-- HDR+ -->
                     <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource SurfaceBorder}" Padding="0,12">

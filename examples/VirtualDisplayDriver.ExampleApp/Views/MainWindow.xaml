@@ -24,9 +24,6 @@
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
             <views:SettingsView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:GpuViewModel}">
-            <views:GpuView />
-        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ActivityLogViewModel}">
             <views:ActivityLogView />
         </DataTemplate>
@@ -48,17 +45,6 @@
                 BorderBrush="{StaticResource SurfaceBorder}"
                 BorderThickness="0,0,1,0">
             <DockPanel>
-                <!-- App Title -->
-                <StackPanel DockPanel.Dock="Top" Margin="16,20,16,16">
-                    <TextBlock Text="VDD Dashboard"
-                               FontSize="18" FontWeight="Bold"
-                               Foreground="{StaticResource TextPrimary}" />
-                    <TextBlock Text="Virtual Display Driver"
-                               FontSize="11"
-                               Foreground="{StaticResource TextDim}"
-                               Margin="0,2,0,0" />
-                </StackPanel>
-
                 <!-- Navigation -->
                 <ListBox AutomationProperties.AutomationId="NavListBox"
                          ItemsSource="{Binding NavigationItems}"

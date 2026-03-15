@@ -24,7 +24,6 @@ public partial class MainViewModel : ObservableObject
         new("Status", "\uE774", typeof(StatusViewModel)),
         new("Displays", "\uE7F4", typeof(DisplayManagementViewModel)),
         new("Settings", "\uE713", typeof(SettingsViewModel)),
-        new("GPU", "\uE964", typeof(GpuViewModel)),
         new("Activity Log", "\uE7BA", typeof(ActivityLogViewModel))
     ];
 
