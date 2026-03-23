@@ -7,6 +7,21 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>VirtualDisplayDriver.ExampleApp</RootNamespace>
+    <AssemblyName>VirtualDisplayManager</AssemblyName>
+    <Version>1.0.0</Version>
+    <Product>Virtual Display Manager</Product>
+    <Description>Desktop app for managing the Virtual Display Driver</Description>
+  </PropertyGroup>
+
+  <!-- Release publish configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
