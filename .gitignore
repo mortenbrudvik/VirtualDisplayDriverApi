@@ -191,9 +191,6 @@ DocProject/Help/html
 # Click-Once directory
 publish/
 
-# Installer output
-installer-output/
-
 # Publish Web Output
 *.[Pp]ublish.xml
 *.azurePubxml

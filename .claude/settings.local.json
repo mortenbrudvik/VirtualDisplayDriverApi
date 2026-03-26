@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(curl:*)",
-      "Bash(cmd //c \"type C:\\\\VirtualDisplayDriver\\\\VirtualDisplayDriver\\\\vdd_settings.xml\" 2>&1 | head -6)",
-      "WebFetch(domain:github.com)"
-    ]
-  }
-}
